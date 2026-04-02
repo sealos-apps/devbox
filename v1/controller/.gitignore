@@ -4,10 +4,6 @@
 *.dll
 *.so
 *.dylib
-.cache
-.claude
-.gocache
-.gomodcache
 bin/*
 Dockerfile.cross
 
@@ -30,5 +26,6 @@ go.work
 *.swo
 *~
 
-# ignore deploy.yaml
+# Kubeconfig might contain secrets
+*.kubeconfig
 deploy/manifests/deploy.yaml

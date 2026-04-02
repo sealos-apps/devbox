@@ -86,8 +86,6 @@ func (r *DevboxReconciler) InitRepoDeleter() {
 // +kubebuilder:rbac:groups=devbox.sealos.io,resources=devboxes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=devbox.sealos.io,resources=devboxes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=devbox.sealos.io,resources=devboxes/finalizers,verbs=update
-// +kubebuilder:rbac:groups=devbox.sealos.io,resources=runtimes,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=devbox.sealos.io,resources=runtimeclasses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=*
 // +kubebuilder:rbac:groups="",resources=pods/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=services,verbs=*
@@ -739,14 +737,6 @@ func (r *DevboxReconciler) generateDevboxPod(devbox *devboxv1alpha1.Devbox, next
 	terminationGracePeriodSeconds := 300
 	automountServiceAccountToken := false
 
-	runtimeClassName := devbox.Spec.RuntimeClassName
-	var runtimeClassNamePtr *string
-	if runtimeClassName == "" {
-		runtimeClassNamePtr = nil
-	} else {
-		runtimeClassNamePtr = ptr.To(runtimeClassName)
-	}
-
 	expectPod := &corev1.Pod{
 		ObjectMeta: objectMeta,
 		Spec: corev1.PodSpec{
@@ -757,8 +747,6 @@ func (r *DevboxReconciler) generateDevboxPod(devbox *devboxv1alpha1.Devbox, next
 			Hostname:   devbox.Name,
 			Containers: containers,
 			Volumes:    volumes,
-
-			RuntimeClassName: runtimeClassNamePtr,
 
 			NodeSelector: devbox.Spec.NodeSelector,
 			Tolerations:  devbox.Spec.Tolerations,

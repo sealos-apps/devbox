@@ -13,16 +13,6 @@
 # limitations under the License.
 
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: devbox-default-user
-  namespace: devbox-system
-rules:
-  - apiGroups: [ "devbox.sealos.io" ]
-    resources: [ "runtimes", "runtimeclasses"]
-    verbs: [ "get", "watch", "list" ]
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: devbox-default-user-rolebinding
