@@ -16,10 +16,10 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle
-} from '@sealos/shadcn-ui/drawer';
-import { Form } from '@sealos/shadcn-ui/form';
-import { Button } from '@sealos/shadcn-ui/button';
-import { Separator } from '@sealos/shadcn-ui/separator';
+} from '@labring/sealos-ui/drawer';
+import { Form } from '@labring/sealos-ui/form';
+import { Button } from '@labring/sealos-ui/button';
+import { Separator } from '@labring/sealos-ui/separator';
 
 import NameField from '@/components/template/NameField';
 import TagsField from '@/components/template/TagsField';

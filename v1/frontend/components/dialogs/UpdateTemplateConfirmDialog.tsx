@@ -7,8 +7,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle
-} from '@sealos/shadcn-ui/dialog';
-import { Button } from '@sealos/shadcn-ui/button';
+} from '@labring/sealos-ui/dialog';
+import { Button } from '@labring/sealos-ui/button';
 
 interface UpdateTemplateConfirmModalProps {
   open: boolean;

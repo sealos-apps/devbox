@@ -14,10 +14,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle
-} from '@sealos/shadcn-ui/dialog';
-import { Input } from '@sealos/shadcn-ui/input';
-import { Button } from '@sealos/shadcn-ui/button';
-import { track } from '@sealos/gtm';
+} from '@labring/sealos-ui/dialog';
+import { Input } from '@labring/sealos-ui/input';
+import { Button } from '@labring/sealos-ui/button';
+import { track } from '@labring/sealos-gtm-sdk';
 
 interface DeleteDevboxDialogProps {
   devbox: DevboxListItemTypeV2 | DevboxDetailTypeV2;

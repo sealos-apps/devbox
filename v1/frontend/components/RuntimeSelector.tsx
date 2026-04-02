@@ -6,18 +6,18 @@ import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import { Check, ChevronDown, PencilLine } from 'lucide-react';
 
-import { Popover, PopoverContent, PopoverTrigger } from '@sealos/shadcn-ui/popover';
-import { Input } from '@sealos/shadcn-ui/input';
-import { ScrollArea } from '@sealos/shadcn-ui/scroll-area';
-import { cn } from '@sealos/shadcn-ui';
-import { Button } from '@sealos/shadcn-ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@labring/sealos-ui/popover';
+import { Input } from '@labring/sealos-ui/input';
+import { ScrollArea } from '@labring/sealos-ui/scroll-area';
+import { cn } from '@labring/sealos-ui';
+import { Button } from '@labring/sealos-ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@sealos/shadcn-ui/select';
+} from '@labring/sealos-ui/select';
 import {
   listOfficialTemplateRepository,
   listPrivateTemplateRepository,

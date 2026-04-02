@@ -2,11 +2,11 @@
 
 import throttle from 'lodash/throttle';
 import { useEffect, useState } from 'react';
-import { EVENT_NAME } from 'sealos-desktop-sdk';
+import { EVENT_NAME } from '@labring/sealos-desktop-sdk';
 import { usePathname, useRouter } from '@/i18n';
 import { useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { createSealosApp, sealosApp } from 'sealos-desktop-sdk/app';
+import { createSealosApp, sealosApp } from '@labring/sealos-desktop-sdk/app';
 
 import { initUser } from '@/api/template';
 import { useEnvStore } from '@/stores/env';
@@ -17,7 +17,7 @@ import { useGlobalStore } from '@/stores/global';
 import { getLangStore, setLangStore } from '@/utils/cookie';
 import { cleanSession, setSessionToSessionStorage } from '@/utils/user';
 
-import { Toaster } from '@sealos/shadcn-ui/sonner';
+import { Toaster } from '@labring/sealos-ui/sonner';
 import RouteHandlerProvider from '@/components/providers/MyRouteHandlerProvider';
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {

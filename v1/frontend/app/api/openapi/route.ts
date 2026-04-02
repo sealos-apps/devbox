@@ -111,7 +111,7 @@ import {
 } from '../v1/devbox/[name]/release/[tag]/schema';
 
 import { NextResponse } from 'next/server';
-import { getToolsList } from 'sealos-mcp-sdk';
+import { getToolsList } from '@labring/sealos-mcp-sdk';
 import path from 'path';
 
 const ErrorResponseSchema = z.object({

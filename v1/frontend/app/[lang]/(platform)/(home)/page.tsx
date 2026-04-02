@@ -13,7 +13,7 @@ import { ALL_TIME_START_DATE } from '@/utils/timeRange';
 import List from './components/List';
 import Empty from './components/Empty';
 import Header from './components/Header';
-import { Loading } from '@sealos/shadcn-ui/loading';
+import { Loading } from '@labring/sealos-ui/loading';
 
 export default function HomePage() {
   const searchParams = useSearchParams();

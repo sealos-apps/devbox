@@ -13,7 +13,7 @@ import { ALL_TIME_START_DATE } from '@/utils/timeRange';
 import DatePicker from '@/components/DatePicker';
 import MonitorChart from '@/components/MonitorChart';
 import { RefreshButton } from '@/components/RefreshButton';
-import { ScrollArea } from '@sealos/shadcn-ui/scroll-area';
+import { ScrollArea } from '@labring/sealos-ui/scroll-area';
 
 const Monitor = () => {
   const params = useParams();

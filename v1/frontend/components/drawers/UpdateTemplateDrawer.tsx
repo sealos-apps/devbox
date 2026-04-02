@@ -22,18 +22,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage
-} from '@sealos/shadcn-ui/form';
+} from '@labring/sealos-ui/form';
 import {
   Drawer,
   DrawerContent,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle
-} from '@sealos/shadcn-ui/drawer';
-import { Input } from '@sealos/shadcn-ui/input';
-import { Button } from '@sealos/shadcn-ui/button';
-import { ScrollArea } from '@sealos/shadcn-ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@sealos/shadcn-ui/popover';
+} from '@labring/sealos-ui/drawer';
+import { Input } from '@labring/sealos-ui/input';
+import { Button } from '@labring/sealos-ui/button';
+import { ScrollArea } from '@labring/sealos-ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@labring/sealos-ui/popover';
 
 interface UpdateTemplateDrawerProps {
   isOpen: boolean;

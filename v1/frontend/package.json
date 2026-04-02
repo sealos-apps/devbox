@@ -8,8 +8,6 @@
     "start": "next start",
     "lint": "next lint",
     "ts-lint": "tsc --noEmit",
-    "link-sdk": "rm -rf node_modules/sealos-desktop-sdk && yalc link sealos-desktop-sdk",
-    "unlink-sdk": "yalc remove --all && pnpm install sealos-desktop-sdk",
     "gen-client": "prisma generate --schema ./prisma/schema.prisma",
     "postinstall": "pnpm gen-client",
     "ui": "pnpm dlx shadcn@latest add"
@@ -19,10 +17,9 @@
     "@kubernetes/client-node": "^0.21.0",
     "@prisma/client": "^5.10.2",
     "@scalar/api-reference-react": "^0.6.23",
-    "@sealos/driver": "workspace:^",
-    "@sealos/gtm": "workspace:^",
-    "@sealos/shadcn-ui": "workspace:^",
-    "@sealos/ui": "workspace:^",
+    "@labring/sealos-driver-sdk": "^1.0.0",
+    "@labring/sealos-gtm-sdk": "^1.0.1",
+    "@labring/sealos-ui": "^1.0.0",
     "@tanstack/react-query": "^4.35.3",
     "@tanstack/react-table": "^8.10.7",
     "axios": "^1.7.3",
@@ -54,8 +51,8 @@
     "react-markdown": "^8.0.7",
     "react-syntax-highlighter": "^15.6.1",
     "sass": "^1.68.0",
-    "sealos-desktop-sdk": "workspace:*",
-    "sealos-mcp-sdk": "workspace:^",
+    "@labring/sealos-desktop-sdk": "^0.1.21",
+    "@labring/sealos-mcp-sdk": "^0.1.1",
     "sonner": "^2.0.5",
     "zod": "^3.23.8",
     "zod-openapi": "^4.2.4",
@@ -82,5 +79,6 @@
     "prettier-plugin-tailwindcss": "^0.6.9",
     "tailwindcss": "^4.1.10",
     "typescript": "^5"
-  }
+  },
+  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
 }

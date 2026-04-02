@@ -6,9 +6,9 @@ import { useFormContext } from 'react-hook-form';
 import { CircleHelp, HardDrive, PencilLine, Plus, Trash2 } from 'lucide-react';
 import { customAlphabet } from 'nanoid';
 
-import { Button } from '@sealos/shadcn-ui/button';
-import { Separator } from '@sealos/shadcn-ui/separator';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@sealos/shadcn-ui/tooltip';
+import { Button } from '@labring/sealos-ui/button';
+import { Separator } from '@labring/sealos-ui/separator';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@labring/sealos-ui/tooltip';
 import NetworkStorageDrawer from '@/components/drawers/NetworkStorageDrawer';
 import type { DevboxEditTypeV2 } from '@/types/devbox';
 import { useEnvStore } from '@/stores/env';

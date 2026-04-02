@@ -13,17 +13,17 @@ import {
   CircleHelp
 } from 'lucide-react';
 
-import { cn } from '@sealos/shadcn-ui';
+import { cn } from '@labring/sealos-ui';
 import { useUserStore } from '@/stores/user';
 
-import { Progress } from '@sealos/shadcn-ui/progress';
+import { Progress } from '@labring/sealos-ui/progress';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger
-} from '@sealos/shadcn-ui/tooltip';
-import { Card, CardContent, CardHeader } from '@sealos/shadcn-ui/card';
+} from '@labring/sealos-ui/tooltip';
+import { Card, CardContent, CardHeader } from '@labring/sealos-ui/card';
 
 const sourceMap = {
   cpu: {

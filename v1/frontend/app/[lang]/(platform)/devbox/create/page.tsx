@@ -29,8 +29,8 @@ import { useErrorMessage } from '@/hooks/useErrorMessage';
 import Form from './components/Form';
 import Yaml from './components/Yaml';
 import Header from './components/Header';
-import { Loading } from '@sealos/shadcn-ui/loading';
-import { track } from '@sealos/gtm';
+import { Loading } from '@labring/sealos-ui/loading';
+import { track } from '@labring/sealos-gtm-sdk';
 import { listTemplate } from '@/api/template';
 import { z } from 'zod';
 

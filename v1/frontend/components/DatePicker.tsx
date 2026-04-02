@@ -7,7 +7,7 @@ import { ChangeEventHandler, useMemo, useState } from 'react';
 import { endOfDay, format, isAfter, isBefore, isMatch, isValid, parse, startOfDay } from 'date-fns';
 import { DateRange, DayPicker, SelectRangeEventHandler } from 'react-day-picker';
 
-import { cn } from '@sealos/shadcn-ui';
+import { cn } from '@labring/sealos-ui';
 import { useDateTimeStore } from '@/stores/date';
 import { ALL_TIME_RANGE_VALUE, formatTimeRange, parseTimeRange } from '@/utils/timeRange';
 
@@ -17,11 +17,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@sealos/shadcn-ui/select';
-import { Input } from '@sealos/shadcn-ui/input';
-import { Button } from '@sealos/shadcn-ui/button';
-import { Separator } from '@sealos/shadcn-ui/separator';
-import { Popover, PopoverContent, PopoverTrigger } from '@sealos/shadcn-ui/popover';
+} from '@labring/sealos-ui/select';
+import { Input } from '@labring/sealos-ui/input';
+import { Button } from '@labring/sealos-ui/button';
+import { Separator } from '@labring/sealos-ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@labring/sealos-ui/popover';
 
 interface DatePickerProps extends React.HTMLAttributes<HTMLDivElement> {
   isDisabled?: boolean;
@@ -367,7 +367,7 @@ const DatePicker = ({
                 mode="range"
                 selected={selectedRange}
                 onSelect={handleRangeSelect}
-                locale={currentLang === 'zh' ? zhCN : enUS}
+                locale={currentLang === 'zh' ? (zhCN as any) : (enUS as any)}
                 weekStartsOn={0}
               />
               <Separator className="bg-zinc-100" />

@@ -1,6 +1,6 @@
 import { UserQuotaItemType } from '@/types/user';
 import { resourcePropertyMap } from '@/constants/resource';
-import { Separator } from '@sealos/shadcn-ui';
+import { Separator } from '@labring/sealos-ui';
 import {
   Dialog,
   DialogContent,
@@ -8,11 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription
-} from '@sealos/shadcn-ui/dialog';
-import { Button } from '@sealos/shadcn-ui/button';
+} from '@labring/sealos-ui/dialog';
+import { Button } from '@labring/sealos-ui/button';
 import { TriangleAlert, XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { sealosApp } from 'sealos-desktop-sdk/app';
+import { sealosApp } from '@labring/sealos-desktop-sdk/app';
 
 export function InsufficientQuotaDialog({
   items,

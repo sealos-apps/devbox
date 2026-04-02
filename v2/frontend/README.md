@@ -1,3 +1,9 @@
+## Package source
+
+- Frontend dependencies are installed from npm registry.
+- Use published `@labring/*` packages directly (for example `@labring/sealos-ui`, `@labring/sealos-driver-sdk`, `@labring/sealos-desktop-sdk`).
+- Do not use `yalc link` / `yalc remove` in this repo.
+
 ## How to dev
 
 1. First,you should refer to `frontend/README.md` ’s `How to dev` part.

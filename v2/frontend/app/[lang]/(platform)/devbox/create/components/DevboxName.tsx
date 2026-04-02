@@ -6,8 +6,8 @@ import { DevboxEditTypeV2 } from '@/types/devbox';
 import { devboxNameSchema } from '@/utils/validate';
 import { useDevboxStore } from '@/stores/devbox';
 
-import { Input } from '@sealos/shadcn-ui/input';
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@sealos/shadcn-ui/form';
+import { Input } from '@labring/sealos-ui/input';
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@labring/sealos-ui/form';
 
 export default function DevboxName({ isEdit }: { isEdit: boolean }) {
   const t = useTranslations();

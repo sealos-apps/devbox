@@ -5,16 +5,16 @@ import { useTranslations } from 'next-intl';
 import { ArrowLeft, Info, X } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
-import { Button } from '@sealos/shadcn-ui/button';
+import { Button } from '@labring/sealos-ui/button';
 
-import { cn } from '@sealos/shadcn-ui';
+import { cn } from '@labring/sealos-ui';
 import { useRouter } from '@/i18n';
 import { downLoadBlob } from '@/utils/tools';
 import { useGuideStore } from '@/stores/guide';
 import type { YamlItemType } from '@/types/index';
 import { useClientSideValue } from '@/hooks/useClientSideValue';
 import { quitGuideDriverObj, startDriver } from '@/hooks/driver';
-import { track } from '@sealos/gtm';
+import { track } from '@labring/sealos-gtm-sdk';
 
 interface HeaderProps {
   yamlList: YamlItemType[];

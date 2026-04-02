@@ -11,13 +11,13 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerFooter
-} from '@sealos/shadcn-ui/drawer';
-import { Button } from '@sealos/shadcn-ui/button';
-import { Input } from '@sealos/shadcn-ui/input';
-import { Label } from '@sealos/shadcn-ui/label';
-import { RadioGroup, RadioGroupItem } from '@sealos/shadcn-ui/radio-group';
-import { Textarea } from '@sealos/shadcn-ui/textarea';
-import { Checkbox } from '@sealos/shadcn-ui/checkbox';
+} from '@labring/sealos-ui/drawer';
+import { Button } from '@labring/sealos-ui/button';
+import { Input } from '@labring/sealos-ui/input';
+import { Label } from '@labring/sealos-ui/label';
+import { RadioGroup, RadioGroupItem } from '@labring/sealos-ui/radio-group';
+import { Textarea } from '@labring/sealos-ui/textarea';
+import { Checkbox } from '@labring/sealos-ui/checkbox';
 import type { GitImportFormData, ImportStage } from '@/types/import';
 import {
   createDevbox,

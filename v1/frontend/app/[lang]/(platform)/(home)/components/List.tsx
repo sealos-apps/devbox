@@ -48,19 +48,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator
-} from '@sealos/shadcn-ui/dropdown-menu';
+} from '@labring/sealos-ui/dropdown-menu';
 import IDEButton from '@/components/IDEButton';
-import { Button } from '@sealos/shadcn-ui/button';
+import { Button } from '@labring/sealos-ui/button';
 import MonitorChart from '@/components/MonitorChart';
 import DevboxStatusTag from '@/components/StatusTag';
-import { Pagination } from '@sealos/shadcn-ui/pagination';
+import { Pagination } from '@labring/sealos-ui/pagination';
 import ReleaseModal from '@/components/dialogs/ReleaseDialog';
 import ShutdownModal from '@/components/dialogs/ShutdownDialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@sealos/shadcn-ui/tooltip';
-import { track } from '@sealos/gtm';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@labring/sealos-ui/tooltip';
+import { track } from '@labring/sealos-gtm-sdk';
 import { Polygon } from '@/components/Polygon';
 import DatePicker from '@/components/DatePicker';
-import { Separator } from '@sealos/shadcn-ui/separator';
+import { Separator } from '@labring/sealos-ui/separator';
 import SearchEmpty from './SearchEmpty';
 import GPUItem from '@/components/GPUItem';
 
@@ -698,8 +698,6 @@ const DevboxList = ({
           <Pagination
             currentPage={table.getState().pagination.pageIndex + 1}
             totalPages={table.getPageCount()}
-            pageSize={table.getState().pagination.pageSize}
-            totalItems={table.getFilteredRowModel().rows.length}
             onPageChange={(page) => table.setPageIndex(page - 1)}
           />
         )}

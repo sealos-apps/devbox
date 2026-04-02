@@ -4,7 +4,7 @@ import { authSession } from '@/services/backend/auth';
 import { getK8s } from '@/services/backend/kubernetes';
 import { jsonRes } from '@/services/backend/response';
 import { monitorFetch } from '@/services/monitorFetch';
-import type { LaunchpadQueryResult } from 'sealos-metrics-sdk';
+import type { LaunchpadQueryResult } from '@labring/sealos-metrics-sdk';
 
 export const dynamic = 'force-dynamic';
 

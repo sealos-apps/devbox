@@ -11,9 +11,9 @@ import { DevboxStatusEnum } from '@/constants/devbox';
 import { useControlDevbox } from '@/hooks/useControlDevbox';
 
 import IDEButton from '@/components/IDEButton';
-import { Button } from '@sealos/shadcn-ui/button';
+import { Button } from '@labring/sealos-ui/button';
 import DevboxStatusTag from '@/components/StatusTag';
-import { ButtonGroup } from '@sealos/shadcn-ui/button-group';
+import { ButtonGroup } from '@labring/sealos-ui/button-group';
 import ShutdownModal from '@/components/dialogs/ShutdownDialog';
 import SimpleShutdownDialog from '@/components/dialogs/SimpleShutdownDialog';
 import DeleteDevboxModal from '@/components/dialogs/DeleteDevboxDialog';
@@ -68,6 +68,7 @@ const Header = ({ refetchDevboxDetail }: HeaderProps) => {
         <div className="mr-3 text-xl font-semibold">{devboxDetail.name}</div>
         <DevboxStatusTag
           status={devboxDetail.status}
+          isSSHGate={devboxDetail.networkType === 'SSHGate'}
           isShutdown={devboxDetail.status.value === DevboxStatusEnum.Shutdown}
         />
       </div>
@@ -91,7 +92,9 @@ const Header = ({ refetchDevboxDetail }: HeaderProps) => {
           <Terminal className="h-4 w-4" />
         </Button>
         <ButtonGroup>
-          {devboxDetail.status.value === 'Stopped' || devboxDetail.status.value === 'Shutdown' ? (
+          {devboxDetail.status.value === 'Stopped' ||
+          devboxDetail.status.value === 'Shutdown' ||
+          devboxDetail.status.value === 'Paused' ? (
             <Button
               variant="outline"
               size="lg"

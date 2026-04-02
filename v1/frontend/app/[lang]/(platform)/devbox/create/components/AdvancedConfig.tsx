@@ -5,9 +5,9 @@ import { useTranslations } from 'next-intl';
 import { useFormContext } from 'react-hook-form';
 import { PencilLine, Plus, Trash2, FileText, Minus } from 'lucide-react';
 
-import { Button } from '@sealos/shadcn-ui/button';
-import { Switch } from '@sealos/shadcn-ui/switch';
-import { Separator } from '@sealos/shadcn-ui/separator';
+import { Button } from '@labring/sealos-ui/button';
+import { Switch } from '@labring/sealos-ui/switch';
+import { Separator } from '@labring/sealos-ui/separator';
 import EnvVariablesDrawer from '@/components/drawers/EnvVariablesDrawer';
 import ConfigMapDrawer from '@/components/drawers/ConfigMapDrawer';
 import type { DevboxEditTypeV2 } from '@/types/devbox';

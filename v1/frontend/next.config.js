@@ -25,7 +25,7 @@ const nextConfig = {
     return config;
   },
   // https://www.npmjs.com/package/geist
-  transpilePackages: ['@sealos/ui', 'sealos-desktop-sdk', '@sealos/driver', 'geist'],
+  transpilePackages: ['@labring/sealos-ui', '@labring/sealos-desktop-sdk', '@labring/sealos-driver-sdk', 'geist'],
   experimental: {
     // this includes files from the monorepo base two directories up
     outputFileTracingRoot: path.join(__dirname, '../../')

@@ -3,7 +3,6 @@
 1. First,you should refer to `frontend/README.md` ’s `How to dev` part.
 
 2. Then you should config your env.
-
    1. Create a new file `.env.local` in frontend/providers/kubepanel directory.
 
       > `SEALOS_DOMAIN` is anyone website you use in sealos.
@@ -27,7 +26,6 @@
    > Why you should have that?
    >
    > If you open your own dev in `localhost:3000` directly,you cannot have sealos desktop border,which maybe influence your style.
-
    1. This url：[website](https://cloud.sealos.run/?openapp=system-template%3FtemplateName%3Done-step-shortcuts)
 
    2. ![image-20240423111024336](https://raw.githubusercontent.com/mlhiter/typora-images/master/202404231110609.png)

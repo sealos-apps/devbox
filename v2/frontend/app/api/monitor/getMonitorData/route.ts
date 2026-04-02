@@ -5,7 +5,7 @@ import { getK8s } from '@/services/backend/kubernetes';
 import { jsonRes } from '@/services/backend/response';
 import { monitorFetch } from '@/services/monitorFetch';
 import { MonitorDataResult, MonitorQueryKey } from '@/types/monitor';
-import type { LaunchpadQueryParams, LaunchpadQueryResult } from 'sealos-metrics-sdk';
+import type { LaunchpadQueryParams, LaunchpadQueryResult } from '@labring/sealos-metrics-sdk';
 
 const AdapterChartData: Record<
   keyof MonitorQueryKey,
@@ -124,6 +124,7 @@ export async function GET(req: NextRequest) {
       data: result
     });
   } catch (error) {
+    console.log(error);
     return jsonRes({
       code: 500,
       error: error

@@ -10,11 +10,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
-} from '@sealos/shadcn-ui/dropdown-menu';
-import { Button } from '@sealos/shadcn-ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@sealos/shadcn-ui/tooltip';
+} from '@labring/sealos-ui/dropdown-menu';
+import { Button } from '@labring/sealos-ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@labring/sealos-ui/tooltip';
 
-import { cn } from '@sealos/shadcn-ui';
+import { cn } from '@labring/sealos-ui';
 import { useEnvStore } from '@/stores/env';
 import { useGuideStore } from '@/stores/guide';
 import { IDEType, useIDEStore } from '@/stores/ide';
@@ -26,7 +26,7 @@ import ToolboxDrawer from './drawers/ToolboxDrawer';
 import JetBrainsGuideDrawer from './drawers/JetbrainsGuideDrawer';
 import { useClientSideValue } from '@/hooks/useClientSideValue';
 import { usePathname } from '@/i18n';
-import { track } from '@sealos/gtm';
+import { track } from '@labring/sealos-gtm-sdk';
 import { useConfirm } from '@/hooks/useConfirm';
 
 export interface JetBrainsGuideData {

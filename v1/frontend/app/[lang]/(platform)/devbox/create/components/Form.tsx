@@ -20,7 +20,7 @@ import QuotaBox from './QuotaBox';
 import DevboxName from './DevboxName';
 import AdvancedConfig from './AdvancedConfig';
 
-import { Tabs, TabsList, TabsTrigger } from '@sealos/shadcn-ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@labring/sealos-ui/tabs';
 import { useEnvStore } from '@/stores/env';
 
 interface FormProps {

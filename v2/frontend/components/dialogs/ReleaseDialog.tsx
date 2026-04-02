@@ -3,7 +3,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { ArrowUpRight, Loader2 } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 
-import { cn } from '@sealos/shadcn-ui';
+import { cn } from '@labring/sealos-ui';
 import { useEnvStore } from '@/stores/env';
 import { useDevboxStore } from '@/stores/devbox';
 import { versionSchema, versionErrorEnum } from '@/utils/validate';
@@ -24,14 +24,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter
-} from '@sealos/shadcn-ui/dialog';
-import { Input } from '@sealos/shadcn-ui/input';
-import { Label } from '@sealos/shadcn-ui/label';
-import { Button } from '@sealos/shadcn-ui/button';
-import { Textarea } from '@sealos/shadcn-ui/textarea';
-import { Checkbox } from '@sealos/shadcn-ui/checkbox';
-import { Separator } from '@sealos/shadcn-ui/separator';
-import { track } from '@sealos/gtm';
+} from '@labring/sealos-ui/dialog';
+import { Input } from '@labring/sealos-ui/input';
+import { Label } from '@labring/sealos-ui/label';
+import { Button } from '@labring/sealos-ui/button';
+import { Textarea } from '@labring/sealos-ui/textarea';
+import { Checkbox } from '@labring/sealos-ui/checkbox';
+import { Separator } from '@labring/sealos-ui/separator';
+import { track } from '@labring/sealos-gtm-sdk';
 
 interface ReleaseDialogProps {
   devbox: Omit<DevboxListItemTypeV2, 'template'>;
@@ -111,33 +111,35 @@ const ReleaseDialog = ({ onClose, onSuccess, devbox, open }: ReleaseDialogProps)
         setLoading(true);
 
         const isRunning = devbox.status.value === 'Running';
+        const isPaused = devbox.status.value === 'Paused';
 
-        // Step 1: Shutdown devbox if it's running (required before release)
-        if (isRunning) {
+        // Step 1: Shutdown devbox if it's running or paused (required before release)
+        if (isRunning || isPaused) {
           toast.info(t('auto_shutting_down'));
 
+          // NOTE: Use shutdown mode for release to save changes. Using this mode, the backend will recycle LV.
           await shutdownDevbox({
             devboxName: devbox.name,
-            shutdownMode: 'Stopped'
+            shutdownMode: 'Shutdown'
           });
 
-          // Poll devbox status for 2 minutes to ensure it's stopped
+          // Poll devbox status for 2 minutes to ensure it's shutdown
           const timeout = 2 * 60 * 1000; // 2 minutes
           const pollInterval = 3000; // 3 seconds
           const startTime = Date.now();
-          let isStopped = false;
+          let isShutdown = false;
 
           while (Date.now() - startTime < timeout) {
             const devboxDetail = await getDevboxByName(devbox.name);
             //NOTE: Here we use state not status.value to check if stopped
-            if (devboxDetail.state === DevboxStatusEnum.Stopped) {
-              isStopped = true;
+            if (devboxDetail.state === DevboxStatusEnum.Shutdown) {
+              isShutdown = true;
               break;
             }
             await new Promise((resolve) => setTimeout(resolve, pollInterval));
           }
 
-          if (!isStopped) {
+          if (!isShutdown) {
             throw new Error(t('devbox_shutdown_timeout'));
           }
         }
@@ -237,7 +239,7 @@ const ReleaseDialog = ({ onClose, onSuccess, devbox, open }: ReleaseDialogProps)
               </div>
             </div>
             <Separator />
-            <span>{t('devbox_pause_save_change')}</span>
+            <p className="text-sm">{t('release_process_pause_notice')}</p>
             <div className="flex items-center gap-3">
               <Checkbox
                 id="confirm-checkbox"

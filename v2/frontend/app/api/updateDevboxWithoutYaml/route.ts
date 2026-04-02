@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { infoLog } from 'sealos-desktop-sdk';
+import { infoLog } from '@labring/sealos-desktop-sdk';
 import { PatchUtils } from '@kubernetes/client-node';
 
 import { YamlKindEnum } from '@/constants/devbox';
@@ -248,6 +248,7 @@ export async function POST(req: NextRequest) {
       data: 'success update devbox'
     });
   } catch (err: any) {
+    console.log(err);
     return jsonRes({
       code: err?.statusCode || err?.response?.statusCode || 500,
       error: err

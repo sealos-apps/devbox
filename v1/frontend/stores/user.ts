@@ -4,7 +4,7 @@ import { immer } from 'zustand/middleware/immer';
 
 import { getUserQuota, getUserIsOutStandingPayment } from '@/api/platform';
 import { UserQuotaItemType } from '@/types/user';
-import { SessionV1 } from 'sealos-desktop-sdk';
+import { SessionV1 } from '@labring/sealos-desktop-sdk';
 
 type State = {
   session: SessionV1 | null;

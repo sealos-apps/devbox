@@ -17,14 +17,14 @@ import { useGuideStore } from '@/stores/guide';
 import { useClientSideValue } from '@/hooks/useClientSideValue';
 import { destroyDriver, startDriver, startGuide2 } from '@/hooks/driver';
 
-import { Input } from '@sealos/shadcn-ui/input';
-import { Button } from '@sealos/shadcn-ui/button';
+import { Input } from '@labring/sealos-ui/input';
+import { Button } from '@labring/sealos-ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
-} from '@sealos/shadcn-ui/dropdown-menu';
+} from '@labring/sealos-ui/dropdown-menu';
 import { useUserStore } from '@/stores/user';
 import { UserQuotaItemType } from '@/types/user';
 import { InsufficientQuotaDialog } from '@/components/dialogs/InsufficientQuotaDialog';

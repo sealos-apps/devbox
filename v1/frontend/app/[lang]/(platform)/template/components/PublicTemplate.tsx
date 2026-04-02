@@ -1,11 +1,11 @@
 import { useTranslations, useLocale } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Label } from '@sealos/shadcn-ui/label';
-import { RadioGroup, RadioGroupItem } from '@sealos/shadcn-ui/radio-group';
-import { ScrollArea } from '@sealos/shadcn-ui/scroll-area';
-import { Skeleton } from '@sealos/shadcn-ui/skeleton';
-import { Button } from '@sealos/shadcn-ui/button';
+import { Label } from '@labring/sealos-ui/label';
+import { RadioGroup, RadioGroupItem } from '@labring/sealos-ui/radio-group';
+import { ScrollArea } from '@labring/sealos-ui/scroll-area';
+import { Skeleton } from '@labring/sealos-ui/skeleton';
+import { Button } from '@labring/sealos-ui/button';
 
 import { useRouter } from '@/i18n';
 import { useGuideStore } from '@/stores/guide';
@@ -17,7 +17,7 @@ import { useDevboxStore } from '@/stores/devbox';
 import { destroyDriver, startDriver, startGuide3 } from '@/hooks/driver';
 
 import TemplateCard from './TemplateCard';
-import { Pagination } from '@sealos/shadcn-ui/pagination';
+import { Pagination } from '@labring/sealos-ui/pagination';
 import Empty from './Empty';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
@@ -671,10 +671,7 @@ const PublicTemplate = ({
               )}
             </ScrollArea>
             <Pagination
-              className="pr-2"
-              pageSize={pageQueryBody.pageSize}
               totalPages={pageQueryBody.totalPage}
-              totalItems={pageQueryBody.totalItems}
               currentPage={pageQueryBody.page}
               onPageChange={(currentPage) => {
                 setPageQueryBody((page) => ({
@@ -734,10 +731,7 @@ const PublicTemplate = ({
               )}
             </ScrollArea>
             <Pagination
-              className="pr-2"
-              pageSize={pageQueryBody.pageSize}
               totalPages={pageQueryBody.totalPage}
-              totalItems={pageQueryBody.totalItems}
               currentPage={pageQueryBody.page}
               onPageChange={(currentPage) => {
                 setPageQueryBody((page) => ({
