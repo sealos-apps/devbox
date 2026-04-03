@@ -12,6 +12,8 @@ This repository contains the DevBox codebase split by version (`v1` and `v2`), w
 > [!NOTE]
 > `v2` is the current development line and should be preferred for new work.
 
+Repository: `github.com/sealos-apps/devbox`
+
 ## Overview
 
 DevBox provides a cloud IDE/workspace experience on Kubernetes. The frontend handles user interactions (creating DevBox instances, runtime/template management, release flow, domain and SSH settings), while the controller reconciles CRDs in the cluster.
@@ -83,6 +85,47 @@ To see all available targets:
 
 ```bash
 make help
+```
+
+## Images
+
+Default image names now follow the new repository naming:
+
+- `ghcr.io/sealos-apps/devbox-v1-controller:latest`
+- `ghcr.io/sealos-apps/devbox-v1-frontend:latest`
+- `ghcr.io/sealos-apps/devbox-v2-controller:latest`
+- `ghcr.io/sealos-apps/devbox-v2-frontend:latest`
+
+You can override these at build or deploy time with `IMG=...` for controllers and `IMG=...` for frontends.
+
+## Release
+
+GitHub Actions workflows live under [`.github/workflows`](/Users/yy/archary/sealos-devbox/.github/workflows) and are split into three stages:
+
+- `CI`: validates `v1/v2` controllers and frontends on pull requests and pushes to `main`
+- `Images`: builds and pushes the four GHCR images on `main`, tags, or manual dispatch
+- `Release`: publishes a GitHub Release on `v*` tags and attaches generated controller manifests
+
+Tagging a release such as `v1.2.3` will publish:
+
+- `ghcr.io/sealos-apps/devbox-v1-controller:v1.2.3`
+- `ghcr.io/sealos-apps/devbox-v1-frontend:v1.2.3`
+- `ghcr.io/sealos-apps/devbox-v2-controller:v1.2.3`
+- `ghcr.io/sealos-apps/devbox-v2-frontend:v1.2.3`
+
+The release workflow also uploads controller manifest bundles generated from:
+
+- `v1/controller`
+- `v2/controller`
+
+If you need to publish manually, you can still run the local make targets:
+
+```bash
+cd v2/controller
+make docker-build docker-push IMG=ghcr.io/sealos-apps/devbox-v2-controller:<tag>
+
+cd ../../v2/frontend
+make docker-build docker-push IMG=ghcr.io/sealos-apps/devbox-v2-frontend:<tag>
 ```
 
 ## Working with v1

@@ -21,7 +21,7 @@ import (
 	"github.com/containerd/nerdctl/v2/pkg/cmd/login"
 	"github.com/containerd/nerdctl/v2/pkg/containerutil"
 	ncdefaults "github.com/containerd/nerdctl/v2/pkg/defaults"
-	"github.com/sealos-apps/sealos-devbox/v2/controller/api/v1alpha2"
+	"github.com/sealos-apps/devbox/v2/controller/api/v1alpha2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

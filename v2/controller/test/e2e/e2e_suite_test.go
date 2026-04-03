@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/sealos-apps/sealos-devbox/v2/controller/test/utils"
+	"github.com/sealos-apps/devbox/v2/controller/test/utils"
 )
 
 var (

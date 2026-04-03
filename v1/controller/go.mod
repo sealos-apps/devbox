@@ -1,4 +1,4 @@
-module github.com/sealos-apps/sealos-devbox/v1/controller
+module github.com/sealos-apps/devbox/v1/controller
 
 go 1.25.3
 

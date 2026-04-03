@@ -30,7 +30,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	devboxv1alpha1 "github.com/sealos-apps/sealos-devbox/v1/controller/api/v1alpha1"
+	devboxv1alpha1 "github.com/sealos-apps/devbox/v1/controller/api/v1alpha1"
 )
 
 var _ = Describe("Devbox Controller", func() {

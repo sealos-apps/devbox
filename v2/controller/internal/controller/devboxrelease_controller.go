@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	devboxv1alpha2 "github.com/sealos-apps/sealos-devbox/v2/controller/api/v1alpha2"
-	"github.com/sealos-apps/sealos-devbox/v2/controller/internal/controller/utils/registry"
+	devboxv1alpha2 "github.com/sealos-apps/devbox/v2/controller/api/v1alpha2"
+	"github.com/sealos-apps/devbox/v2/controller/internal/controller/utils/registry"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"

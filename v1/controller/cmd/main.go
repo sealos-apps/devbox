@@ -44,11 +44,11 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	devboxv1alpha1 "github.com/sealos-apps/sealos-devbox/v1/controller/api/v1alpha1"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/matcher"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/registry"
-	utilresource "github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/resource"
+	devboxv1alpha1 "github.com/sealos-apps/devbox/v1/controller/api/v1alpha1"
+	"github.com/sealos-apps/devbox/v1/controller/internal/controller"
+	"github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/matcher"
+	"github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/registry"
+	utilresource "github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/resource"
 	// +kubebuilder:scaffold:imports
 )
 

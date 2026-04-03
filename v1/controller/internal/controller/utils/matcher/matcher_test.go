@@ -17,7 +17,7 @@ package matcher
 import (
 	"testing"
 
-	utilsresource "github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/resource"
+	utilsresource "github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/resource"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

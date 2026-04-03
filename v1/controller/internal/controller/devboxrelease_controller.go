@@ -24,9 +24,9 @@ import (
 
 	reference "github.com/google/go-containerregistry/pkg/name"
 
-	devboxv1alpha1 "github.com/sealos-apps/sealos-devbox/v1/controller/api/v1alpha1"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/helper"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/registry"
+	devboxv1alpha1 "github.com/sealos-apps/devbox/v1/controller/api/v1alpha1"
+	"github.com/sealos-apps/devbox/v1/controller/internal/controller/helper"
+	"github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/registry"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"

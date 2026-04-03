@@ -3,7 +3,7 @@ package helper
 import (
 	"testing"
 
-	devboxv1alpha2 "github.com/sealos-apps/sealos-devbox/v2/controller/api/v1alpha2"
+	devboxv1alpha2 "github.com/sealos-apps/devbox/v2/controller/api/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 )
 

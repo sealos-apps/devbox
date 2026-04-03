@@ -36,7 +36,7 @@ spec:
     spec:
       initContainers:
         - name: devbox-frontend-init
-          image: ghcr.io/labring/sealos-devbox-frontend:latest
+          image: ghcr.io/sealos-apps/devbox-v2-frontend:latest
           imagePullPolicy: Always
           env:
           - name: DATABASE_URL
@@ -134,7 +134,7 @@ spec:
               cpu: 100m
               memory: 128Mi
           # do not modify this image, it is used for CI/CD
-          image: ghcr.io/labring/sealos-devbox-frontend:latest
+          image: ghcr.io/sealos-apps/devbox-v2-frontend:latest
           imagePullPolicy: Always
           volumeMounts:
             - name: devbox-frontend-volume

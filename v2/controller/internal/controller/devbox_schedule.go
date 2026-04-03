@@ -6,9 +6,9 @@ import (
 	"math"
 	"strconv"
 
-	devboxv1alpha2 "github.com/sealos-apps/sealos-devbox/v2/controller/api/v1alpha2"
-	"github.com/sealos-apps/sealos-devbox/v2/controller/internal/controller/helper"
-	"github.com/sealos-apps/sealos-devbox/v2/controller/internal/stat"
+	devboxv1alpha2 "github.com/sealos-apps/devbox/v2/controller/api/v1alpha2"
+	"github.com/sealos-apps/devbox/v2/controller/internal/controller/helper"
+	"github.com/sealos-apps/devbox/v2/controller/internal/stat"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"

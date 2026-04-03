@@ -22,9 +22,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	devboxv1alpha2 "github.com/sealos-apps/sealos-devbox/v2/controller/api/v1alpha2"
-	utilsresource "github.com/sealos-apps/sealos-devbox/v2/controller/internal/controller/utils/resource"
-	"github.com/sealos-apps/sealos-devbox/v2/controller/label"
+	devboxv1alpha2 "github.com/sealos-apps/devbox/v2/controller/api/v1alpha2"
+	utilsresource "github.com/sealos-apps/devbox/v2/controller/internal/controller/utils/resource"
+	"github.com/sealos-apps/devbox/v2/controller/label"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

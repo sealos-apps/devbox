@@ -4023,7 +4023,7 @@ spec:
         - --registry-password={{ .registryPassword }}
         command:
         - /manager
-        image: ghcr.io/labring/sealos-devbox-controller:latest
+        image: ghcr.io/sealos-apps/devbox-v1-controller:latest
         livenessProbe:
           httpGet:
             path: /healthz

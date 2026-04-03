@@ -32,7 +32,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	devboxv1alpha1 "github.com/sealos-apps/sealos-devbox/v1/controller/api/v1alpha1"
+	devboxv1alpha1 "github.com/sealos-apps/devbox/v1/controller/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 

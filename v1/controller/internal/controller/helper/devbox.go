@@ -29,9 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 
-	devboxv1alpha1 "github.com/sealos-apps/sealos-devbox/v1/controller/api/v1alpha1"
-	utilsresource "github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/resource"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/label"
+	devboxv1alpha1 "github.com/sealos-apps/devbox/v1/controller/api/v1alpha1"
+	utilsresource "github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/resource"
+	"github.com/sealos-apps/devbox/v1/controller/label"
 )
 
 const (

@@ -7,7 +7,7 @@ domain: sealos.io
 layout:
 - go.kubebuilder.io/v4
 projectName: devbox
-repo: github.com/sealos-apps/sealos-devbox/v1/controller
+repo: github.com/sealos-apps/devbox/v1/controller
 resources:
 - api:
     crdVersion: v1
@@ -16,7 +16,7 @@ resources:
   domain: sealos.io
   group: devbox
   kind: Devbox
-  path: github.com/sealos-apps/sealos-devbox/v1/controller/api/v1alpha1
+  path: github.com/sealos-apps/devbox/v1/controller/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -25,6 +25,6 @@ resources:
   domain: sealos.io
   group: devbox
   kind: DevBoxRelease
-  path: github.com/sealos-apps/sealos-devbox/v1/controller/api/v1alpha1
+  path: github.com/sealos-apps/devbox/v1/controller/api/v1alpha1
   version: v1alpha1
 version: "3"

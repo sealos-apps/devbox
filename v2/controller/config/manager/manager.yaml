@@ -43,7 +43,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
-        image: ghcr.io/labring/sealos-devbox-controller:latest
+        image: ghcr.io/sealos-apps/devbox-v2-controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
         securityContext:

@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"time"
 
-	devboxv1alpha1 "github.com/sealos-apps/sealos-devbox/v1/controller/api/v1alpha1"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/helper"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/matcher"
-	utilsregistry "github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/registry"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/internal/controller/utils/resource"
-	"github.com/sealos-apps/sealos-devbox/v1/controller/label"
+	devboxv1alpha1 "github.com/sealos-apps/devbox/v1/controller/api/v1alpha1"
+	"github.com/sealos-apps/devbox/v1/controller/internal/controller/helper"
+	"github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/matcher"
+	utilsregistry "github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/registry"
+	"github.com/sealos-apps/devbox/v1/controller/internal/controller/utils/resource"
+	"github.com/sealos-apps/devbox/v1/controller/label"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
