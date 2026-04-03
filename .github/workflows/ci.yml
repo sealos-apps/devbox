@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25.3"
+  NODE_VERSION: "20"
+  PNPM_VERSION: "10.32.1"
+
+jobs:
+  controller:
+    name: Controller / ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: v1
+            workdir: v1/controller
+          - target: v2
+            workdir: v2/controller
+    defaults:
+      run:
+        working-directory: ${{ matrix.workdir }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: ${{ matrix.workdir }}/go.sum
+
+      - name: Run controller tests
+        run: make test
+
+  frontend:
+    name: Frontend / ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: v1
+            workdir: v1/frontend
+          - target: v2
+            workdir: v2/frontend
+    defaults:
+      run:
+        working-directory: ${{ matrix.workdir }}
+    env:
+      NEXT_PUBLIC_MOCK_USER: ""
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      WHITELIST_KUBERNETES_HOSTS: ""
+      SEALOS_DOMAIN: "example.com"
+      SSH_DOMAIN: "ssh.example.com"
+      INGRESS_DOMAIN: "apps.example.com"
+      REGISTRY_ADDR: "ghcr.io/example"
+      INGRESS_SECRET: "wildcard-cert"
+      DEVBOX_AFFINITY_ENABLE: "true"
+      SQUASH_ENABLE: "false"
+      STORAGE_LIMIT: "10Gi"
+      JWT_SECRET: "devbox-ci-secret"
+      REGION_UID: "ci-region"
+      METRICS_URL: "http://127.0.0.1:8429"
+      MONITOR_URL: "http://127.0.0.1:8428"
+      ACCOUNT_URL: "http://127.0.0.1:2333"
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/devbox?schema=public"
+      RETAG_SVC_URL: "http://127.0.0.1:8092"
+      PRIVACY_URL_ZH: "https://example.com/privacy/zh"
+      PRIVACY_URL_EN: "https://example.com/privacy/en"
+      DOCUMENT_URL_ZH: "https://example.com/docs/zh"
+      DOCUMENT_URL_EN: "https://example.com/docs/en"
+      CURRENCY_SYMBOL: "usd"
+      GPU_ENABLE: "false"
+      ENABLE_IMPORT_FEATURE: "false"
+      ENABLE_WEBIDE_FEATURE: "false"
+      ENABLE_ADVANCED_CONFIG: "false"
+      ENABLE_ADVANCED_ENV_AND_CONFIGMAP: "false"
+      ENABLE_ADVANCED_NFS: "false"
+      ENABLE_ADVANCED_SHARED_MEMORY: "false"
+      CPU_SLIDE_MARK_LIST: "1,2,4,8,16"
+      MEMORY_SLIDE_MARK_LIST: "2,4,8,16,32"
+      STORAGE_DEFAULT: "10"
+      DEVBOX_DOMAIN_CHALLENGE_SECRET: "devbox-ci-domain-secret"
+      NFS_STORAGE_CLASS_NAME: "nfs-csi"
+      NFS_MAX_SIZE: "20"
+      WEBIDE_PORT: "9999"
+      ROOT_RUNTIME_NAMESPACE: "devbox-system"
+      CUSTOM_SCRIPTS: "[]"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: ${{ matrix.workdir }}/pnpm-lock.yaml
+
+      - name: Verify frontend
+        run: make verify

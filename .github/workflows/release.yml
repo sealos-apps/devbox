@@ -1,0 +1,189 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  GO_VERSION: "1.25.3"
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+
+jobs:
+  images:
+    name: Release Image / ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: v1-controller
+            image_name: devbox-v1-controller
+            dockerfile: v1/controller/Dockerfile
+            context: v1/controller
+            platforms: linux/amd64,linux/arm64
+          - name: v2-controller
+            image_name: devbox-v2-controller
+            dockerfile: v2/controller/Dockerfile
+            context: v2/controller
+            platforms: linux/amd64,linux/arm64
+          - name: v1-frontend
+            image_name: devbox-v1-frontend
+            dockerfile: v1/frontend/Dockerfile
+            context: v1/frontend
+            platforms: linux/amd64,linux/arm64
+          - name: v2-frontend
+            image_name: devbox-v2-frontend
+            dockerfile: v2/frontend/Dockerfile
+            context: v2/frontend
+            platforms: linux/amd64,linux/arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image_name }}
+          tags: |
+            type=ref,event=tag
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=release-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.name }}
+          build-args: |
+            NEXT_PUBLIC_MOCK_USER=
+            NODE_TLS_REJECT_UNAUTHORIZED=0
+            WHITELIST_KUBERNETES_HOSTS=
+            SEALOS_DOMAIN=example.com
+            SSH_DOMAIN=ssh.example.com
+            INGRESS_DOMAIN=apps.example.com
+            REGISTRY_ADDR=ghcr.io/example
+            INGRESS_SECRET=wildcard-cert
+            DEVBOX_AFFINITY_ENABLE=true
+            SQUASH_ENABLE=false
+            STORAGE_LIMIT=10Gi
+            JWT_SECRET=devbox-ci-secret
+            REGION_UID=ci-region
+            METRICS_URL=http://127.0.0.1:8429
+            MONITOR_URL=http://127.0.0.1:8428
+            ACCOUNT_URL=http://127.0.0.1:2333
+            DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/devbox?schema=public
+            RETAG_SVC_URL=http://127.0.0.1:8092
+            PRIVACY_URL_ZH=https://example.com/privacy/zh
+            PRIVACY_URL_EN=https://example.com/privacy/en
+            DOCUMENT_URL_ZH=https://example.com/docs/zh
+            DOCUMENT_URL_EN=https://example.com/docs/en
+            CURRENCY_SYMBOL=usd
+            GPU_ENABLE=false
+            ENABLE_IMPORT_FEATURE=false
+            ENABLE_WEBIDE_FEATURE=false
+            ENABLE_ADVANCED_CONFIG=false
+            ENABLE_ADVANCED_ENV_AND_CONFIGMAP=false
+            ENABLE_ADVANCED_NFS=false
+            ENABLE_ADVANCED_SHARED_MEMORY=false
+            CPU_SLIDE_MARK_LIST=1,2,4,8,16
+            MEMORY_SLIDE_MARK_LIST=2,4,8,16,32
+            STORAGE_DEFAULT=10
+            DEVBOX_DOMAIN_CHALLENGE_SECRET=devbox-ci-domain-secret
+            NFS_STORAGE_CLASS_NAME=nfs-csi
+            NFS_MAX_SIZE=20
+            WEBIDE_PORT=9999
+            ROOT_RUNTIME_NAMESPACE=devbox-system
+            CUSTOM_SCRIPTS=[]
+
+  controller-manifests:
+    name: Controller Manifest / ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    needs:
+      - images
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: v1
+            workdir: v1/controller
+            image: ghcr.io/${{ github.repository_owner }}/devbox-v1-controller:${{ github.ref_name }}
+          - target: v2
+            workdir: v2/controller
+            image: ghcr.io/${{ github.repository_owner }}/devbox-v2-controller:${{ github.ref_name }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.workdir }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: ${{ matrix.workdir }}/go.sum
+
+      - name: Generate controller manifest
+        run: make pre-deploy IMG=${{ matrix.image }}
+
+      - name: Rename manifest artifact
+        run: cp deploy/manifests/deploy.yaml dist-${{ matrix.target }}-controller-install.yaml
+
+      - name: Upload manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-controller-install
+          path: ${{ matrix.workdir }}/dist-${{ matrix.target }}-controller-install.yaml
+
+  github-release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs:
+      - images
+      - controller-manifests
+    steps:
+      - name: Download manifest artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/v1-controller-install/dist-v1-controller-install.yaml
+            artifacts/v2-controller-install/dist-v2-controller-install.yaml
+          body: |
+            Container images published for `${{ github.ref_name }}`:
+
+            - `ghcr.io/${{ github.repository_owner }}/devbox-v1-controller:${{ github.ref_name }}`
+            - `ghcr.io/${{ github.repository_owner }}/devbox-v1-frontend:${{ github.ref_name }}`
+            - `ghcr.io/${{ github.repository_owner }}/devbox-v2-controller:${{ github.ref_name }}`
+            - `ghcr.io/${{ github.repository_owner }}/devbox-v2-frontend:${{ github.ref_name }}`
