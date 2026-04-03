@@ -52,7 +52,7 @@
     "react-syntax-highlighter": "^15.6.1",
     "sass": "^1.68.0",
     "@labring/sealos-desktop-sdk": "^0.1.21",
-    "@labring/sealos-mcp-sdk": "^0.1.1",
+    "@labring/sealos-mcp-sdk": "^0.1.2",
     "sonner": "^2.0.5",
     "zod": "^3.23.8",
     "zod-openapi": "^4.2.4",
