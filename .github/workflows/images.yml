@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -72,9 +70,8 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image_name }}
           tags: |
             type=ref,event=branch
-            type=ref,event=tag
             type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' || github.ref_name == 'main' }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
@@ -89,3 +86,41 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
           build-args: |
             NEXT_PUBLIC_MOCK_USER=
+            NODE_TLS_REJECT_UNAUTHORIZED=0
+            WHITELIST_KUBERNETES_HOSTS=
+            SEALOS_DOMAIN=example.com
+            SSH_DOMAIN=ssh.example.com
+            INGRESS_DOMAIN=apps.example.com
+            REGISTRY_ADDR=ghcr.io/example
+            INGRESS_SECRET=wildcard-cert
+            DEVBOX_AFFINITY_ENABLE=true
+            SQUASH_ENABLE=false
+            STORAGE_LIMIT=10Gi
+            JWT_SECRET=devbox-ci-secret
+            REGION_UID=ci-region
+            METRICS_URL=http://127.0.0.1:8429
+            MONITOR_URL=http://127.0.0.1:8428
+            ACCOUNT_URL=http://127.0.0.1:2333
+            DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/devbox?schema=public
+            RETAG_SVC_URL=http://127.0.0.1:8092
+            PRIVACY_URL_ZH=https://example.com/privacy/zh
+            PRIVACY_URL_EN=https://example.com/privacy/en
+            DOCUMENT_URL_ZH=https://example.com/docs/zh
+            DOCUMENT_URL_EN=https://example.com/docs/en
+            CURRENCY_SYMBOL=usd
+            GPU_ENABLE=false
+            ENABLE_IMPORT_FEATURE=false
+            ENABLE_WEBIDE_FEATURE=false
+            ENABLE_ADVANCED_CONFIG=false
+            ENABLE_ADVANCED_ENV_AND_CONFIGMAP=false
+            ENABLE_ADVANCED_NFS=false
+            ENABLE_ADVANCED_SHARED_MEMORY=false
+            CPU_SLIDE_MARK_LIST=1,2,4,8,16
+            MEMORY_SLIDE_MARK_LIST=2,4,8,16,32
+            STORAGE_DEFAULT=10
+            DEVBOX_DOMAIN_CHALLENGE_SECRET=devbox-ci-domain-secret
+            NFS_STORAGE_CLASS_NAME=nfs-csi
+            NFS_MAX_SIZE=20
+            WEBIDE_PORT=9999
+            ROOT_RUNTIME_NAMESPACE=devbox-system
+            CUSTOM_SCRIPTS=[]
