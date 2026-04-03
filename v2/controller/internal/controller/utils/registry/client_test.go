@@ -14,46 +14,76 @@
 
 package registry
 
-import "testing"
+import (
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
 
-func TestClient_TagImage(t1 *testing.T) {
-	type fields struct {
-		Username string
-		Password string
-	}
-	type args struct {
-		source string
-		target string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "Test1",
-			fields: fields{
-				Username: "admin",
-				Password: "passw0rd",
-			},
-			args: args{
-				source: "sealos.hub:5000/default/devbox-sample:2024-08-21-072021",
-				target: "sealos.hub:5000/default/devbox-sample:test",
-			},
+func TestRegistryReTag(t *testing.T) {
+	const (
+		username = "admin"
+		password = "passw0rd"
+		source   = "example.test/default/devbox-sample:old-tag"
+		target   = "example.test/default/devbox-sample:new-tag"
+	)
+
+	var gotPutBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if user, pass, ok := r.BasicAuth(); !ok || user != username || pass != password {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v2/default/devbox-sample/manifests/old-tag":
+			w.Header().Set("Content-Type", "application/vnd.docker.distribution.manifest.v2+json")
+			_, _ = w.Write([]byte(`{"schemaVersion":2}`))
+		case r.Method == http.MethodPut && r.URL.Path == "/v2/default/devbox-sample/manifests/new-tag":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read request body: %v", err)
+			}
+			gotPutBody = string(body)
+			w.WriteHeader(http.StatusCreated)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	registry := &Registry{
+		BasicAuth: BasicAuth{
+			Username: username,
+			Password: password,
 		},
 	}
-	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			t := &Registry{
-				BasicAuth: BasicAuth{
-					Username: tt.fields.Username,
-					Password: tt.fields.Password,
-				},
-			}
-			if err := t.ReTag(tt.args.source, tt.args.target); (err != nil) != tt.wantErr {
-				t1.Errorf("TagImage() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
+
+	sourceImage := strings.Replace(source, "example.test", strings.TrimPrefix(server.URL, "http://"), 1)
+	targetImage := strings.Replace(target, "example.test", strings.TrimPrefix(server.URL, "http://"), 1)
+
+	if err := registry.ReTag(sourceImage, targetImage); err != nil {
+		t.Fatalf("ReTag() error = %v, want nil", err)
+	}
+
+	if gotPutBody != `{"schemaVersion":2}` {
+		t.Fatalf("ReTag() pushed manifest = %q, want %q", gotPutBody, `{"schemaVersion":2}`)
+	}
+}
+
+func TestRegistryPullManifestNotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	registry := &Registry{}
+	image := strings.TrimPrefix(server.URL, "http://") + "/default/devbox-sample:missing"
+
+	_, err := registry.pullManifest(image)
+	if err != ErrManifestNotFound {
+		t.Fatalf("pullManifest() error = %v, want %v", err, ErrManifestNotFound)
 	}
 }

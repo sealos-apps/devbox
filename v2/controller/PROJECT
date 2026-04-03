@@ -2,6 +2,7 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
+cliVersion: 4.13.1
 domain: sealos.io
 layout:
 - go.kubebuilder.io/v4
@@ -15,15 +16,6 @@ resources:
   domain: sealos.io
   group: devbox
   kind: Devbox
-  path: github.com/sealos-apps/sealos-devbox/v2/controller/api/v1alpha2
-  version: v1alpha2
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: sealos.io
-  group: devbox
-  kind: DevBoxReleases
   path: github.com/sealos-apps/sealos-devbox/v2/controller/api/v1alpha2
   version: v1alpha2
 - api:

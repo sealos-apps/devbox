@@ -3,6 +3,7 @@ package commit
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -22,6 +23,20 @@ const (
 	baseImageAlpine  = "docker.io/library/alpine:latest"
 )
 
+func requireContainerdTestEnv(t *testing.T) {
+	t.Helper()
+
+	if _, err := os.Stat("/var/run/containerd/containerd.sock"); err != nil {
+		t.Skipf("skipping containerd integration test: socket unavailable: %v", err)
+	}
+	if _, err := os.Stat(DefaultNerdctlDataRoot); err != nil {
+		t.Skipf("skipping containerd integration test: data root unavailable: %v", err)
+	}
+	if _, err := os.ReadDir(DefaultNerdctlDataRoot); err != nil {
+		t.Skipf("skipping containerd integration test: data root not accessible: %v", err)
+	}
+}
+
 // init Committer
 func TestNewCommitter(t *testing.T) {
 	committer, err := NewCommitter("", "", "", true)
@@ -33,6 +48,7 @@ func TestNewCommitter(t *testing.T) {
 
 // test commit flow
 func TestCommitFlow(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 
 	// 1. create committer
@@ -51,6 +67,7 @@ func TestCommitFlow(t *testing.T) {
 
 // test create container
 func TestCreateContainer(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	require.NoError(t, err)
@@ -76,6 +93,7 @@ func TestCreateContainer(t *testing.T) {
 
 // test delete container
 func TestDeleteContainer(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)
@@ -133,6 +151,7 @@ func TestDeleteContainer(t *testing.T) {
 
 // test remove container
 func TestRemoveContainer(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)
@@ -190,6 +209,7 @@ func TestRemoveContainer(t *testing.T) {
 
 // test error cases
 func TestErrorCases(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)
@@ -222,6 +242,7 @@ func TestErrorCases(t *testing.T) {
 
 // test concurrent operations
 func TestConcurrentOperations(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)
@@ -279,6 +300,7 @@ func TestConcurrentOperations(t *testing.T) {
 
 // test runtime selection
 func TestRuntimeSelection(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)
@@ -330,6 +352,7 @@ func TestRuntimeSelection(t *testing.T) {
 
 // test connection management
 func TestConnectionManagement(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)
@@ -405,6 +428,7 @@ func TestConnectionManagement(t *testing.T) {
 
 // test push to Docker Hub
 func TestPushToDockerHub(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 
 	// use test registry
@@ -479,6 +503,7 @@ func TestPushToDockerHub(t *testing.T) {
 
 // test push without authentication
 func TestPushWithoutAuth(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 
 	// no authentication
@@ -516,6 +541,7 @@ func TestPushWithoutAuth(t *testing.T) {
 
 // test remove image
 func TestRemoveImage(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)
@@ -551,6 +577,7 @@ func TestRemoveImage(t *testing.T) {
 
 // TestAtomicLabels test containerd's atomic label update
 func TestAtomicLabels(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	ctx = namespaces.WithNamespace(ctx, DefaultNamespace)
 	committer, err := NewCommitter("", "", "", true)
@@ -652,6 +679,7 @@ func TestAtomicLabels(t *testing.T) {
 
 // test get image
 func TestGetImage(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)
@@ -673,6 +701,7 @@ func TestGetImage(t *testing.T) {
 
 // TestRemoveImagePerformance test RemoveImage performance
 func TestRemoveImagePerformance(t *testing.T) {
+	requireContainerdTestEnv(t)
 	ctx := context.Background()
 	committer, err := NewCommitter("", "", "", true)
 	assert.NoError(t, err)

@@ -39,6 +39,10 @@ type DevboxreleaseReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// DevBoxReleaseReconciler is a compatibility alias that matches the latest
+// Kubebuilder scaffold naming while preserving the existing business type.
+type DevBoxReleaseReconciler = DevboxreleaseReconciler
+
 // +kubebuilder:rbac:groups=devbox.sealos.io,resources=devboxreleases,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=devbox.sealos.io,resources=devboxreleases/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=devbox.sealos.io,resources=devboxreleases/finalizers,verbs=update

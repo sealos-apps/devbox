@@ -41,8 +41,6 @@ rules:
   resources:
   - devboxes
   - devboxreleases
-  - runtimeclasses
-  - runtimes
   verbs:
   - create
   - delete
