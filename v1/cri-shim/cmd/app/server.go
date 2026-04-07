@@ -1,0 +1,100 @@
+package app
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+
+	imageutil "github.com/sealos-apps/devbox/v1/cri-shim/pkg/image"
+	metrics "github.com/sealos-apps/devbox/v1/cri-shim/pkg/metric"
+	"github.com/sealos-apps/devbox/v1/cri-shim/pkg/server"
+	"github.com/sealos-apps/devbox/v1/cri-shim/pkg/types"
+)
+
+var cfg *types.Config
+
+func newServerCmd() *cobra.Command {
+	var serverCmd = &cobra.Command{
+		Use:   "server",
+		Short: "start the cri-shim server",
+		Run: func(cmd *cobra.Command, args []string) {
+			run(cfg)
+		},
+	}
+	cfg = types.BindOptions(serverCmd)
+	return serverCmd
+}
+
+func run(cfg *types.Config) {
+	s, err := server.New(
+		server.Options{
+			Timeout:             time.Minute * 5,
+			ShimSocket:          cfg.CRIShimSocket,
+			CRISocket:           cfg.RuntimeSocket,
+			ContainerdNamespace: cfg.ContainerdNamespace,
+			ContainerdRoot:      cfg.ContainerdRoot,
+			PoolSize:            cfg.PoolSize,
+			MetricFlag:          cfg.MetricsConfig.Metric,
+		},
+		imageutil.RegistryOptions{
+			RegistryAddr: cfg.GlobalRegistryAddr,
+			UserName:     cfg.GlobalRegistryUser,
+			Password:     cfg.GlobalRegistryPassword,
+			Repository:   cfg.GlobalRegistryRepo,
+		})
+	if cfg.Debug {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+	if err != nil {
+		slog.Error("failed to create server", "err", err)
+		return
+	}
+	err = s.Start()
+	if err != nil {
+		slog.Error("failed to start server", "err", err)
+		return
+	}
+	slog.Info("server started")
+
+	s.Init()
+
+	if cfg.MetricsConfig.Metric {
+		shutdown, err := metrics.SetupOTelSDK(cfg.MetricsConfig)
+		if err != nil {
+			slog.Error("failed to setup otel sdk", "err", err)
+		}
+		defer shutdown(context.Background())
+		s.MetricClient = otel.Meter(metrics.MeterName)
+		slog.Info("otel sdk started")
+	}
+
+	if cfg.Trace {
+		go func() {
+			err = http.ListenAndServe(":8090", nil)
+			if err != nil {
+				slog.Error("pprof server started error", "err", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
+
+	stopCh := make(chan struct{}, 1)
+	select {
+	case <-signalCh:
+		close(stopCh)
+	case <-stopCh:
+	}
+	_ = os.Remove(cfg.CRIShimSocket)
+	slog.Info("shutting down the image_shim")
+	s.Stop()
+}
