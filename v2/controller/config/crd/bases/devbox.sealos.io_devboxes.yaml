@@ -3414,9 +3414,21 @@ spec:
                     node:
                       description: Node is the node name
                       type: string
+                    runtimeClassName:
+                      description: RuntimeClassName is the runtime class used by this
+                        content record.
+                      type: string
+                    runtimeHandler:
+                      description: RuntimeHandler is the runtime handler annotation
+                        used by this content record.
+                      type: string
                     scheduleTime:
                       description: ScheduleTime is the time when the commit is scheduled
                       format: date-time
+                      type: string
+                    snapshotter:
+                      description: Snapshotter is the containerd snapshotter used
+                        by this content record.
                       type: string
                     updateTime:
                       description: UpdateTime is the time when the commit is updated

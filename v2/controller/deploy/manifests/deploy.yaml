@@ -3422,9 +3422,21 @@ spec:
                     node:
                       description: Node is the node name
                       type: string
+                    runtimeClassName:
+                      description: RuntimeClassName is the runtime class used by this
+                        content record.
+                      type: string
+                    runtimeHandler:
+                      description: RuntimeHandler is the runtime handler annotation
+                        used by this content record.
+                      type: string
                     scheduleTime:
                       description: ScheduleTime is the time when the commit is scheduled
                       format: date-time
+                      type: string
+                    snapshotter:
+                      description: Snapshotter is the containerd snapshotter used
+                        by this content record.
                       type: string
                     updateTime:
                       description: UpdateTime is the time when the commit is updated
@@ -4267,6 +4279,14 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - node.k8s.io
+  resources:
+  - runtimeclasses
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -4385,10 +4405,8 @@ spec:
       - args:
         - --metrics-bind-address=:8443
         - --health-probe-bind-address=:8081
-        - --registry-addr=sealos.hub:5000
-        - --registry-user=admin
-        - --registry-password=passw0rd
-        - --enable-block-io-resource=true
+        - --metrics-bind-address=:8443
+        - --default-base-image=docker.io/library/alpine:3.23
         command:
         - /manager
         env:
@@ -4397,7 +4415,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
-        image: controller:latest
+        image: ghcr.io/sealos-apps/devbox-v2-controller:latest
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -4498,3 +4516,15 @@ spec:
       maxSurge: 0
       maxUnavailable: 1
     type: RollingUpdate
+---
+apiVersion: node.k8s.io/v1
+handler: devbox-runc
+kind: RuntimeClass
+metadata:
+  name: devbox-runtime
+---
+apiVersion: node.k8s.io/v1
+handler: devbox-stargz-runc
+kind: RuntimeClass
+metadata:
+  name: devbox-stargz-runtime

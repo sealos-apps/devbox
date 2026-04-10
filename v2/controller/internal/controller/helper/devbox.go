@@ -15,6 +15,7 @@
 package helper
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/pem"
@@ -27,8 +28,11 @@ import (
 	"github.com/sealos-apps/devbox/v2/controller/label"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
+	nodev1 "k8s.io/api/node/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -59,6 +63,89 @@ func WithPodRuntimeHandler(runtime string) DevboxPodOptions {
 		}
 		pod.Annotations[devboxv1alpha2.AnnotationRuntime] = runtime
 	}
+}
+
+func ResolveRuntimeClassName(runtimeClassName string) string {
+	if strings.TrimSpace(runtimeClassName) == "" {
+		return devboxv1alpha2.RuntimeClassDevboxRunc
+	}
+	return strings.TrimSpace(runtimeClassName)
+}
+
+func ResolveSnapshotterByHandler(runtimeHandler string) string {
+	switch strings.TrimSpace(runtimeHandler) {
+	case devboxv1alpha2.RuntimeHandlerDevboxStargzRunc:
+		return devboxv1alpha2.SnapshotterStargz
+	default:
+		return devboxv1alpha2.SnapshotterDevbox
+	}
+}
+
+type RuntimeMetadata struct {
+	RuntimeClassName string
+	RuntimeHandler   string
+	Snapshotter      string
+}
+
+func ResolveRuntimeMetadata(
+	ctx context.Context,
+	reader client.Reader,
+	runtimeClassName string,
+) (RuntimeMetadata, error) {
+	resolvedClassName := ResolveRuntimeClassName(runtimeClassName)
+	if reader == nil {
+		return RuntimeMetadata{}, fmt.Errorf("runtime class reader is nil")
+	}
+
+	runtimeClass := &nodev1.RuntimeClass{}
+	if err := reader.Get(ctx, types.NamespacedName{Name: resolvedClassName}, runtimeClass); err != nil {
+		return RuntimeMetadata{}, fmt.Errorf("failed to get RuntimeClass %q: %w", resolvedClassName, err)
+	}
+
+	runtimeHandler := strings.TrimSpace(runtimeClass.Handler)
+	if runtimeHandler == "" {
+		return RuntimeMetadata{}, fmt.Errorf("RuntimeClass %q has empty handler", resolvedClassName)
+	}
+
+	return RuntimeMetadata{
+		RuntimeClassName: resolvedClassName,
+		RuntimeHandler:   runtimeHandler,
+		Snapshotter:      ResolveSnapshotterByHandler(runtimeHandler),
+	}, nil
+}
+
+func EnsureCommitRecordRuntimeMetadata(
+	ctx context.Context,
+	reader client.Reader,
+	record *devboxv1alpha2.CommitRecord,
+	defaultRuntimeClassName string,
+) (bool, error) {
+	if record == nil {
+		return false, nil
+	}
+	runtimeClassName := ResolveRuntimeClassName(defaultRuntimeClassName)
+	if record.RuntimeClassName != "" {
+		runtimeClassName = ResolveRuntimeClassName(record.RuntimeClassName)
+	}
+	metadata, err := ResolveRuntimeMetadata(ctx, reader, runtimeClassName)
+	if err != nil {
+		return false, err
+	}
+
+	changed := false
+	if record.RuntimeClassName != runtimeClassName {
+		record.RuntimeClassName = runtimeClassName
+		changed = true
+	}
+	if record.RuntimeHandler != metadata.RuntimeHandler {
+		record.RuntimeHandler = metadata.RuntimeHandler
+		changed = true
+	}
+	if record.Snapshotter != metadata.Snapshotter {
+		record.Snapshotter = metadata.Snapshotter
+		changed = true
+	}
+	return changed, nil
 }
 
 func WithPodInit(init string) DevboxPodOptions {

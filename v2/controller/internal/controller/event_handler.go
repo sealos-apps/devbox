@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	devboxv1alpha2 "github.com/sealos-apps/devbox/v2/controller/api/v1alpha2"
 	"github.com/sealos-apps/devbox/v2/controller/internal/commit"
+	"github.com/sealos-apps/devbox/v2/controller/internal/controller/helper"
 	"github.com/sealos-apps/devbox/v2/controller/internal/controller/utils/events"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +32,7 @@ var (
 )
 
 type EventHandler struct {
-	Committer           commit.Committer
+	Committers          map[string]commit.Committer
 	CommitImageRegistry string
 	NodeName            string
 	DefaultBaseImage    string
@@ -39,6 +41,28 @@ type EventHandler struct {
 	Client   client.Client
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
+}
+
+func (h *EventHandler) getCommitterBySnapshotter(snapshotter string) (commit.Committer, error) {
+	selected := strings.TrimSpace(snapshotter)
+	if selected == "" {
+		selected = commit.DefaultDevboxSnapshotter
+	}
+	committer, ok := h.Committers[selected]
+	if ok && committer != nil {
+		return committer, nil
+	}
+	if fallback, ok := h.Committers[commit.DefaultDevboxSnapshotter]; ok && fallback != nil {
+		h.Logger.Info(
+			"snapshotter committer not found, fallback to devbox snapshotter",
+			"requestedSnapshotter",
+			selected,
+			"fallbackSnapshotter",
+			commit.DefaultDevboxSnapshotter,
+		)
+		return fallback, nil
+	}
+	return nil, fmt.Errorf("committer for snapshotter %q not found", selected)
 }
 
 // todo: handle state change event
@@ -256,13 +280,13 @@ func (h *EventHandler) handleStorageCleanup(ctx context.Context, event *corev1.E
 		}, corev1.EventTypeWarning, "Storage cleanup failed",
 			"Failed to cleanup Storage: %v", err)
 	} else {
-		h.Logger.Info("Successfully cleaned up storage during deletion", "devbox", event.Name)
+		h.Logger.Info("Successfully requested storage cleanup during deletion", "devbox", event.Name)
 		h.Recorder.Eventf(&corev1.ObjectReference{
 			Kind:      event.InvolvedObject.Kind,
 			Name:      event.InvolvedObject.Name,
 			Namespace: event.InvolvedObject.Namespace,
 		}, corev1.EventTypeNormal, "Storage cleanup succeeded",
-			"Successfully cleaned up storage for devbox %s", event.Name)
+			"Successfully requested storage cleanup for devbox %s", event.Name)
 	}
 	return nil
 }
@@ -299,8 +323,12 @@ func (h *EventHandler) commitDevbox(
 			}
 			return err
 		}
-		latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].CommitStatus = devboxv1alpha2.CommitStatusCommitting
-		latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].UpdateTime = metav1.Now()
+		currentRecord, err := getCurrentCommitRecord(latestDevbox)
+		if err != nil {
+			return err
+		}
+		currentRecord.CommitStatus = devboxv1alpha2.CommitStatusCommitting
+		currentRecord.UpdateTime = metav1.Now()
 		latestDevbox.SetCondition(metav1.Condition{
 			Type:               devboxv1alpha2.DevboxConditionCommitInProgress,
 			Status:             metav1.ConditionTrue,
@@ -339,8 +367,34 @@ func (h *EventHandler) commitDevbox(
 		return err
 	}
 	// step 1: do commit, push image, remove container whether commit success or not
-	baseImage := devbox.Status.CommitRecords[devbox.Status.ContentID].BaseImage
-	commitImage := devbox.Status.CommitRecords[devbox.Status.ContentID].CommitImage
+	currentRecord, err := getCurrentCommitRecord(devbox)
+	if err != nil {
+		h.Logger.Error(err, "failed to get current commit record", "devbox", devbox.Name)
+		return err
+	}
+	if _, err := helper.EnsureCommitRecordRuntimeMetadata(
+		ctx,
+		h.Client,
+		currentRecord,
+		devbox.Spec.RuntimeClassName,
+	); err != nil {
+		h.Logger.Error(err, "failed to resolve runtime metadata", "devbox", devbox.Name)
+		return err
+	}
+	committer, err := h.getCommitterBySnapshotter(currentRecord.Snapshotter)
+	if err != nil {
+		h.Logger.Error(
+			err,
+			"failed to select committer by snapshotter",
+			"devbox",
+			devbox.Name,
+			"snapshotter",
+			currentRecord.Snapshotter,
+		)
+		return err
+	}
+	baseImage := currentRecord.BaseImage
+	commitImage := currentRecord.CommitImage
 	oldContentID := devbox.Status.ContentID
 	h.Logger.Info(
 		"commit devbox",
@@ -356,14 +410,14 @@ func (h *EventHandler) commitDevbox(
 	removeImageNames := make([]string, 0, 2)
 	defer func() {
 		// remove container whether commit success or not
-		if containerID != "" {
-			if err := h.Committer.RemoveContainers(ctx, []string{containerID}); err != nil {
+		if strings.TrimSpace(containerID) != "" {
+			if err := committer.RemoveContainers(ctx, []string{containerID}); err != nil {
 				h.Logger.Error(err, "failed to remove container", "containerID", containerID)
 			}
 		}
 		// remove after push image whether push success
 		if len(removeImageNames) > 0 {
-			if err := h.Committer.RemoveImages(
+			if err := committer.RemoveImages(
 				ctx,
 				removeImageNames,
 				commit.DefaultRemoveImageForce,
@@ -373,7 +427,40 @@ func (h *EventHandler) commitDevbox(
 			}
 		}
 	}()
-	imageExists, err := h.Committer.ImageExists(ctx, commitImage)
+	previousContainerID := normalizeContainerRuntimeID(devbox.Status.LastContainerStatus.ContainerID)
+	if previousContainerID != "" {
+		h.Logger.Info(
+			"waiting for previous devbox container to stop before commit",
+			"devbox",
+			devbox.Name,
+			"containerID",
+			previousContainerID,
+		)
+		if err := committer.WaitContainerStopped(ctx, previousContainerID, 30*time.Second); err != nil {
+			h.Logger.Error(
+				err,
+				"failed waiting for previous devbox container to stop before commit",
+				"devbox",
+				devbox.Name,
+				"containerID",
+				previousContainerID,
+			)
+			return err
+		}
+		if err := committer.UnmountSnapshot(ctx, previousContainerID); err != nil {
+			h.Logger.Error(
+				err,
+				"failed to detach previous devbox snapshot before commit",
+				"devbox",
+				devbox.Name,
+				"containerID",
+				previousContainerID,
+			)
+			return err
+		}
+	}
+
+	imageExists, err := committer.ImageExists(ctx, commitImage)
 	if err != nil {
 		h.Logger.Error(err, "failed to check local commit image", "commitImage", commitImage)
 		return err
@@ -387,7 +474,7 @@ func (h *EventHandler) commitDevbox(
 			commitImage,
 		)
 	} else {
-		if containerID, commitErr = h.Committer.Commit(
+		if containerID, commitErr = committer.Commit(
 			ctx,
 			devbox.Name,
 			devbox.Status.ContentID,
@@ -410,8 +497,12 @@ func (h *EventHandler) commitDevbox(
 					}
 					return err
 				}
-				latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].CommitStatus = devboxv1alpha2.CommitStatusFailed
-				latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].UpdateTime = metav1.Now()
+				currentRecord, err := getCurrentCommitRecord(latestDevbox)
+				if err != nil {
+					return err
+				}
+				currentRecord.CommitStatus = devboxv1alpha2.CommitStatusFailed
+				currentRecord.UpdateTime = metav1.Now()
 				latestDevbox.SetCondition(metav1.Condition{
 					Type:               devboxv1alpha2.DevboxConditionCommitInProgress,
 					Status:             metav1.ConditionFalse,
@@ -453,7 +544,7 @@ func (h *EventHandler) commitDevbox(
 		h.Logger.Error(err, "failed to get devbox", "devbox", devbox.Name)
 		return err
 	}
-	if err := h.Committer.Push(ctx, commitImage); err != nil {
+	if err := committer.Push(ctx, commitImage); err != nil {
 		h.Logger.Error(err, "failed to push commit image", "commitImage", commitImage)
 		// Update commit status to failed on push error with retry
 		updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -469,8 +560,12 @@ func (h *EventHandler) commitDevbox(
 				}
 				return err
 			}
-			latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].CommitStatus = devboxv1alpha2.CommitStatusFailed
-			latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].UpdateTime = metav1.Now()
+			currentRecord, err := getCurrentCommitRecord(latestDevbox)
+			if err != nil {
+				return err
+			}
+			currentRecord.CommitStatus = devboxv1alpha2.CommitStatusFailed
+			currentRecord.UpdateTime = metav1.Now()
 			latestDevbox.SetCondition(metav1.Condition{
 				Type:               devboxv1alpha2.DevboxConditionCommitInProgress,
 				Status:             metav1.ConditionFalse,
@@ -521,16 +616,34 @@ func (h *EventHandler) commitDevbox(
 			}
 			return err
 		}
-		latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].CommitStatus = devboxv1alpha2.CommitStatusSuccess
-		latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].CommitTime = metav1.Now()
+		currentRecord, err := getCurrentCommitRecord(latestDevbox)
+		if err != nil {
+			return err
+		}
+		if _, err := helper.EnsureCommitRecordRuntimeMetadata(
+			ctx,
+			h.Client,
+			currentRecord,
+			latestDevbox.Spec.RuntimeClassName,
+		); err != nil {
+			return err
+		}
+		currentRecord.CommitStatus = devboxv1alpha2.CommitStatusSuccess
+		currentRecord.CommitTime = metav1.Now()
 		latestDevbox.Status.State = targetState
 		latestDevbox.Status.ContentID = newContentID
+		if latestDevbox.Status.CommitRecords == nil {
+			latestDevbox.Status.CommitRecords = make(devboxv1alpha2.CommitRecordMap)
+		}
 		latestDevbox.Status.CommitRecords[newContentID] = &devboxv1alpha2.CommitRecord{
-			CommitStatus: devboxv1alpha2.CommitStatusPending,
-			Node:         "",
-			BaseImage:    commitImage,
-			CommitImage:  newCommitImage,
-			GenerateTime: metav1.Now(),
+			CommitStatus:     devboxv1alpha2.CommitStatusPending,
+			Node:             "",
+			BaseImage:        commitImage,
+			CommitImage:      newCommitImage,
+			GenerateTime:     metav1.Now(),
+			RuntimeClassName: currentRecord.RuntimeClassName,
+			RuntimeHandler:   currentRecord.RuntimeHandler,
+			Snapshotter:      currentRecord.Snapshotter,
 		}
 		latestDevbox.Status.Node = ""
 		// Commit succeeded; clear in-progress, and clear pending transition if synced.
@@ -564,7 +677,7 @@ func (h *EventHandler) commitDevbox(
 	}
 	// step 5: set LV removable
 	if containerID != "" {
-		if err := h.Committer.SetLvRemovable(ctx, containerID, oldContentID); err != nil {
+		if err := committer.SetLvRemovable(ctx, containerID, oldContentID); err != nil {
 			h.Logger.Error(
 				err,
 				"failed to set LV removable",
@@ -608,7 +721,7 @@ func (h *EventHandler) removeStorage(ctx context.Context, event *corev1.Event) e
 		"message",
 		event.Message,
 	)
-	devboxName, contentID, baseImage := h.parseStorageCleanupAnno(event.Annotations)
+	devboxName, contentID, baseImage, snapshotter, runtimeClass, runtimeHandler := h.parseStorageCleanupAnno(event.Annotations)
 
 	// Use k8s.io/client-go/util/retry for robust retry logic
 	err := retry.OnError(
@@ -620,7 +733,7 @@ func (h *EventHandler) removeStorage(ctx context.Context, event *corev1.Event) e
 		},
 		func(err error) bool { return true },
 		func() error {
-			return h.cleanupStorage(ctx, devboxName, contentID, baseImage)
+			return h.cleanupStorage(ctx, devboxName, contentID, baseImage, snapshotter, runtimeClass, runtimeHandler)
 		},
 	)
 	if err != nil {
@@ -631,14 +744,32 @@ func (h *EventHandler) removeStorage(ctx context.Context, event *corev1.Event) e
 			err,
 		)
 	}
-	h.Logger.Info("Successfully completed storage cleanup", "devbox", devboxName)
+	h.Logger.Info("Successfully requested storage cleanup", "devbox", devboxName)
 	return nil
 }
 
 func (h *EventHandler) cleanupStorage(
 	ctx context.Context,
-	devboxName, contentID, baseImage string,
+	devboxName, contentID, baseImage, snapshotter, runtimeClass, runtimeHandler string,
 ) error {
+	committer, err := h.getCommitterBySnapshotter(snapshotter)
+	if err != nil {
+		h.Logger.Error(
+			err,
+			"failed to select committer for cleanup",
+			"devbox",
+			devboxName,
+			"contentID",
+			contentID,
+			"snapshotter",
+			snapshotter,
+			"runtimeClass",
+			runtimeClass,
+			"runtimeHandler",
+			runtimeHandler,
+		)
+		return err
+	}
 	h.Logger.Info(
 		"Starting Storage cleanup",
 		"devbox",
@@ -647,12 +778,18 @@ func (h *EventHandler) cleanupStorage(
 		contentID,
 		"baseImage",
 		baseImage,
+		"snapshotter",
+		snapshotter,
+		"runtimeClass",
+		runtimeClass,
+		"runtimeHandler",
+		runtimeHandler,
 		"defaultBaseImage",
 		h.DefaultBaseImage,
 	)
 
 	// create temp container
-	containerID, err := h.Committer.CreateContainer(
+	containerID, err := committer.CreateContainer(
 		ctx,
 		fmt.Sprintf("temp-%s-%d", devboxName, time.Now().UnixMicro()),
 		contentID,
@@ -674,7 +811,7 @@ func (h *EventHandler) cleanupStorage(
 
 	// make sure remove container
 	defer func() {
-		if cleanupErr := h.Committer.RemoveContainers(
+		if cleanupErr := committer.RemoveContainers(
 			ctx,
 			[]string{containerID},
 		); cleanupErr != nil {
@@ -698,7 +835,7 @@ func (h *EventHandler) cleanupStorage(
 	}()
 
 	// remove storage
-	if err := h.Committer.SetLvRemovable(ctx, containerID, contentID); err != nil {
+	if err := committer.SetLvRemovable(ctx, containerID, contentID); err != nil {
 		h.Logger.Error(
 			err,
 			"failed to set Storage removable",
@@ -713,7 +850,7 @@ func (h *EventHandler) cleanupStorage(
 	}
 
 	h.Logger.Info(
-		"Successfully completed Storage cleanup",
+		"Successfully marked storage removable",
 		"devbox",
 		devboxName,
 		"containerID",
@@ -728,9 +865,39 @@ func (h *EventHandler) cleanupStorage(
 // parseStorageCleanupAnno parses the annotations from the event and returns the devboxName, contentID, and baseImage
 func (h *EventHandler) parseStorageCleanupAnno(
 	annotations events.Annotations,
-) (devboxName, contentID, baseImage string) {
+) (devboxName, contentID, baseImage, snapshotter, runtimeClass, runtimeHandler string) {
 	devboxName = annotations[events.KeyAnnotationDevboxName]
 	contentID = annotations[events.KeyAnnotationContentID]
 	baseImage = annotations[events.KeyAnnotationBaseImage]
-	return devboxName, contentID, baseImage
+	snapshotter = annotations[events.KeyAnnotationSnapshotter]
+	runtimeClass = annotations[events.KeyAnnotationRuntimeClass]
+	runtimeHandler = annotations[events.KeyAnnotationRuntimeHandler]
+	return devboxName, contentID, baseImage, snapshotter, runtimeClass, runtimeHandler
+}
+
+func normalizeContainerRuntimeID(containerID string) string {
+	containerID = strings.TrimSpace(containerID)
+	if containerID == "" {
+		return ""
+	}
+	parts := strings.SplitN(containerID, "://", 2)
+	if len(parts) == 2 {
+		return parts[1]
+	}
+	return containerID
+}
+
+func getCurrentCommitRecord(devbox *devboxv1alpha2.Devbox) (*devboxv1alpha2.CommitRecord, error) {
+	if devbox.Status.CommitRecords == nil {
+		return nil, fmt.Errorf("commit records are empty for devbox %s", devbox.Name)
+	}
+	record := devbox.Status.CommitRecords[devbox.Status.ContentID]
+	if record == nil {
+		return nil, fmt.Errorf(
+			"commit record not found for devbox %s contentID %s",
+			devbox.Name,
+			devbox.Status.ContentID,
+		)
+	}
+	return record, nil
 }

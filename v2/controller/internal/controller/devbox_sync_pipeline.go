@@ -766,12 +766,24 @@ func (r *DevboxReconciler) syncPod(
 			if currentRecord == nil {
 				return errors.New("current record is nil")
 			}
+			if _, err := helper.EnsureCommitRecordRuntimeMetadata(
+				ctx,
+				r.Client,
+				currentRecord,
+				devbox.Spec.RuntimeClassName,
+			); err != nil {
+				return fmt.Errorf("failed to resolve runtime metadata: %w", err)
+			}
+			runtimeHandler := currentRecord.RuntimeHandler
+			if runtimeHandler == "" {
+				return fmt.Errorf("runtime handler is empty for devbox %s", devbox.Name)
+			}
 			// create a new pod with default image, with new content id
 			podOptions := []helper.DevboxPodOptions{
 				helper.WithPodImage(currentRecord.BaseImage),
 				helper.WithPodContentID(devbox.Status.ContentID),
 				helper.WithPodNodeName(currentRecord.Node),
-				helper.WithPodRuntimeHandler(devboxv1alpha2.PodRuntimeHandler),
+				helper.WithPodRuntimeHandler(runtimeHandler),
 			}
 			if r.MergeBaseImageTopLayer {
 				podOptions = append(podOptions, helper.WithPodInit(commit.AnnotationImageFromValue))

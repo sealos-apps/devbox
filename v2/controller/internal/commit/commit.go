@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes/docker/config"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
+	ctdsnapshotters "github.com/containerd/containerd/v2/pkg/snapshotters"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/nerdctl/v2/pkg/api/types"
 	"github.com/containerd/nerdctl/v2/pkg/cmd/container"
@@ -22,6 +24,10 @@ import (
 	"github.com/containerd/nerdctl/v2/pkg/cmd/login"
 	"github.com/containerd/nerdctl/v2/pkg/containerutil"
 	ncdefaults "github.com/containerd/nerdctl/v2/pkg/defaults"
+	nerderrutil "github.com/containerd/nerdctl/v2/pkg/errutil"
+	"github.com/containerd/nerdctl/v2/pkg/imgutil/dockerconfigresolver"
+	"github.com/containerd/platforms"
+	"github.com/containerd/stargz-snapshotter/fs/source"
 	"github.com/sealos-apps/devbox/v2/controller/api/v1alpha2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -39,6 +45,8 @@ type Committer interface {
 	RemoveContainers(ctx context.Context, containerNames []string) error
 	InitializeGC(ctx context.Context) error
 	SetLvRemovable(ctx context.Context, containerID, contentID string) error
+	UnmountSnapshot(ctx context.Context, containerID string) error
+	WaitContainerStopped(ctx context.Context, containerID string, timeout time.Duration) error
 }
 
 type CommitterImpl struct {
@@ -50,19 +58,54 @@ type CommitterImpl struct {
 	registryPassword string
 	// Merge base image layers control
 	mergeBaseImageTopLayer bool
+	// Configurable via flags
+	devboxSnapshotter string
+	networkMode       string
 }
 
-// NewCommitter new a CommitterImpl with registry configuration
+func shouldCommitAsEstargz(snapshotter string) bool {
+	return snapshotter == DevboxStargzSnapshotter
+}
+
+func isDevboxStargzSnapshotter(snapshotter string) bool {
+	return snapshotter == DevboxStargzSnapshotter
+}
+
+func (c *CommitterImpl) newCommitOptions() types.ContainerCommitOptions {
+	opt := types.ContainerCommitOptions{
+		Stdout:   io.Discard,
+		GOptions: *c.globalOptions,
+		Pause:    PauseContainerDuringCommit,
+		DevboxOptions: types.DevboxOptions{
+			RemoveBaseImageTopLayer: c.mergeBaseImageTopLayer,
+		},
+	}
+	if shouldCommitAsEstargz(c.devboxSnapshotter) {
+		opt.Format = types.ImageFormatOCI
+		opt.Estargz = true
+	}
+	return opt
+}
+
+// NewCommitter new a CommitterImpl with registry configuration.
+// snapshotter and networkMode use DefaultDevboxSnapshotter and DefaultNetworkMode when empty.
 func NewCommitter(
 	registryAddr, registryUsername, registryPassword string,
 	merge bool,
+	snapshotter, networkMode string,
 ) (Committer, error) {
+	if snapshotter == "" {
+		snapshotter = DefaultDevboxSnapshotter
+	}
+	if networkMode == "" {
+		networkMode = DefaultNetworkMode
+	}
 	var conn *grpc.ClientConn
 	var err error
 
 	// login to registry
 	err = login.Login(context.Background(), types.LoginCommandOptions{
-		GOptions:      *NewGlobalOptionConfig(),
+		GOptions:      *newGlobalOptionConfigWithSnapshotter(snapshotter),
 		ServerAddress: registryAddr,
 		Username:      registryUsername,
 		Password:      registryPassword,
@@ -117,11 +160,13 @@ func NewCommitter(
 	return &CommitterImpl{
 		containerdClient:       containerdClient,
 		conn:                   conn,
-		globalOptions:          NewGlobalOptionConfig(),
+		globalOptions:          newGlobalOptionConfigWithSnapshotter(snapshotter),
 		registryAddr:           registryAddr,
 		registryUsername:       registryUsername,
 		registryPassword:       registryPassword,
 		mergeBaseImageTopLayer: merge,
+		devboxSnapshotter:      snapshotter,
+		networkMode:            networkMode,
 	}, nil
 }
 
@@ -144,6 +189,10 @@ func (c *CommitterImpl) CreateContainer(
 		if reconnectErr := c.Reconnect(ctx); reconnectErr != nil {
 			return "", fmt.Errorf("failed to reconnect: %w", reconnectErr)
 		}
+	}
+
+	if err := c.ensureBaseImageForSnapshotter(ctx, baseImage); err != nil {
+		return "", fmt.Errorf("failed to ensure base image for snapshotter %s: %w", c.devboxSnapshotter, err)
 	}
 
 	// create container with labels
@@ -188,7 +237,7 @@ func (c *CommitterImpl) CreateContainer(
 	// create network manager
 	networkManager, err := containerutil.NewNetworkingOptionsManager(createOpt.GOptions,
 		types.NetworkOptions{
-			NetworkSlice: []string{DefaultNetworkMode},
+			NetworkSlice: []string{c.networkMode},
 		}, c.containerdClient)
 	if err != nil {
 		log.Println("failed to create network manager:", err)
@@ -213,6 +262,80 @@ func (c *CommitterImpl) CreateContainer(
 
 	log.Printf("container created successfully: %s\n", container.ID())
 	return container.ID(), nil
+}
+
+func (c *CommitterImpl) ensureBaseImageForSnapshotter(ctx context.Context, imageRef string) error {
+	if !isDevboxStargzSnapshotter(c.devboxSnapshotter) {
+		return nil
+	}
+
+	platformStr := platforms.Format(platforms.DefaultSpec())
+
+	if existing, err := c.containerdClient.GetImage(ctx, imageRef); err == nil {
+		if unpacked, unpackErr := existing.IsUnpacked(ctx, c.devboxSnapshotter); unpackErr == nil && unpacked {
+			return nil
+		}
+	} else if err != nil && !cerrdefs.IsNotFound(err) {
+		return fmt.Errorf("failed to inspect base image %q: %w", imageRef, err)
+	}
+
+	resolver, err := c.newResolver(ctx, imageRef, false)
+	if err != nil {
+		return err
+	}
+
+	remoteOpts := []containerd.RemoteOpt{
+		containerd.WithResolver(resolver),
+		containerd.WithPlatform(platformStr),
+		containerd.WithPullUnpack,
+		containerd.WithPullSnapshotter(
+			c.devboxSnapshotter,
+			snapshots.WithLabels(map[string]string{}),
+		),
+		containerd.WithImageHandlerWrapper(
+			source.AppendExtraLabelsHandler(
+				DefaultStargzPrefetchSize,
+				ctdsnapshotters.AppendInfoHandlerWrapper(imageRef),
+			),
+		),
+	}
+
+	_, err = c.containerdClient.Pull(ctx, imageRef, remoteOpts...)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, http.ErrSchemeMismatch) && !nerderrutil.IsErrConnectionRefused(err) {
+		return fmt.Errorf("failed to pull image %q with snapshotter %s: %w", imageRef, c.devboxSnapshotter, err)
+	}
+
+	resolver, resolveErr := c.newResolver(ctx, imageRef, true)
+	if resolveErr != nil {
+		return fmt.Errorf("failed to rebuild plain-http resolver after pull error: %w", resolveErr)
+	}
+	remoteOpts[0] = containerd.WithResolver(resolver)
+	if _, err = c.containerdClient.Pull(ctx, imageRef, remoteOpts...); err != nil {
+		return fmt.Errorf("failed to pull image %q with plain HTTP and snapshotter %s: %w", imageRef, c.devboxSnapshotter, err)
+	}
+
+	return nil
+}
+
+func (c *CommitterImpl) newResolver(ctx context.Context, imageRef string, plainHTTP bool) (remotes.Resolver, error) {
+	ref, err := dockerconfigresolver.Parse(imageRef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse image ref %q: %w", imageRef, err)
+	}
+
+	opts := []dockerconfigresolver.Opt{
+		dockerconfigresolver.WithHostsDirs([]string{DefaultNerdctlHostsDir}),
+	}
+	if InsecureRegistry {
+		opts = append(opts, dockerconfigresolver.WithSkipVerifyCerts(true))
+	}
+	if plainHTTP {
+		opts = append(opts, dockerconfigresolver.WithPlainHTTP(true))
+	}
+	return dockerconfigresolver.New(ctx, ref.Hostname(), opts...)
 }
 
 // DeleteContainer delete container
@@ -272,7 +395,7 @@ func (c *CommitterImpl) SetLvRemovable(ctx context.Context, containerID, content
 		}
 	}
 
-	_, err := c.containerdClient.SnapshotService(DefaultDevboxSnapshotter).
+	_, err := c.containerdClient.SnapshotService(c.devboxSnapshotter).
 		Update(ctx, snapshots.Info{
 			Name:   containerID,
 			Labels: map[string]string{RemoveContentIDkey: contentID},
@@ -283,13 +406,107 @@ func (c *CommitterImpl) SetLvRemovable(ctx context.Context, containerID, content
 	return nil
 }
 
+func (c *CommitterImpl) UnmountSnapshot(ctx context.Context, containerID string) error {
+	log.Printf("========>>>> unmount snapshot for container, containerID: %s", containerID)
+	if strings.TrimSpace(containerID) == "" {
+		return errors.New("[UnmountSnapshot]containerID is empty")
+	}
+	ctx = namespaces.WithNamespace(ctx, DefaultNamespace)
+
+	if err := c.CheckConnection(ctx); err != nil {
+		log.Printf("Connection check failed: %v, attempting to reconnect...", err)
+		if reconnectErr := c.Reconnect(ctx); reconnectErr != nil {
+			return fmt.Errorf("failed to reconnect: %w", reconnectErr)
+		}
+	}
+
+	_, err := c.containerdClient.SnapshotService(c.devboxSnapshotter).
+		Update(ctx, snapshots.Info{
+			Name:   containerID,
+			Labels: map[string]string{"containerd.io/snapshot/devbox-unmount-lvm": "true"},
+		}, "labels.containerd.io/snapshot/devbox-unmount-lvm")
+	if err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (c *CommitterImpl) WaitContainerStopped(ctx context.Context, containerID string, timeout time.Duration) error {
+	if strings.TrimSpace(containerID) == "" {
+		return nil
+	}
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+
+	ctx = namespaces.WithNamespace(ctx, DefaultNamespace)
+	if err := c.CheckConnection(ctx); err != nil {
+		log.Printf("Connection check failed: %v, attempting to reconnect...", err)
+		if reconnectErr := c.Reconnect(ctx); reconnectErr != nil {
+			return fmt.Errorf("failed to reconnect: %w", reconnectErr)
+		}
+	}
+
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		container, err := c.containerdClient.LoadContainer(waitCtx, containerID)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to load container %q: %w", containerID, err)
+		}
+
+		task, err := container.Task(waitCtx, nil)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to load task for container %q: %w", containerID, err)
+		}
+
+		status, err := task.Status(waitCtx)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to get task status for container %q: %w", containerID, err)
+		}
+
+		switch status.Status {
+		case containerd.Stopped, containerd.Unknown:
+			return nil
+		}
+
+		select {
+		case <-waitCtx.Done():
+			return fmt.Errorf("timeout waiting for container %q to stop", containerID)
+		case <-ticker.C:
+		}
+	}
+}
+
 // RemoveContainer remove container
 func (c *CommitterImpl) RemoveContainers(ctx context.Context, containerNames []string) error {
-	if len(containerNames) == 0 {
+	filtered := make([]string, 0, len(containerNames))
+	for _, name := range containerNames {
+		if strings.TrimSpace(name) != "" {
+			filtered = append(filtered, name)
+		}
+	}
+	if len(filtered) == 0 {
 		return errors.New("[RemoveContainers]containerNames is empty")
 	}
 
-	log.Printf("========>>>> remove container, containerNames: %v", containerNames)
+	log.Printf("========>>>> remove container, containerNames: %v", filtered)
 	ctx = namespaces.WithNamespace(ctx, DefaultNamespace)
 
 	// check connection status, if connection is bad, try to reconnect
@@ -300,14 +517,13 @@ func (c *CommitterImpl) RemoveContainers(ctx context.Context, containerNames []s
 		}
 	}
 
-	global := NewGlobalOptionConfig()
 	opt := types.ContainerRemoveOptions{
 		Stdout:   io.Discard,
 		Force:    DefaultRemoveContainerForce,
 		Volumes:  false,
-		GOptions: *global,
+		GOptions: *c.globalOptions,
 	}
-	err := container.Remove(ctx, c.containerdClient, containerNames, opt)
+	err := container.Remove(ctx, c.containerdClient, filtered, opt)
 	if err != nil {
 		return fmt.Errorf("failed to remove container: %w", err)
 	}
@@ -336,16 +552,7 @@ func (c *CommitterImpl) Commit(
 	// defer c.MarkForGC(containerID, commitImage)
 
 	// create commit options
-	global := NewGlobalOptionConfig()
-	opt := types.ContainerCommitOptions{
-		Stdout:   io.Discard,
-		GOptions: *global,
-		Pause:    PauseContainerDuringCommit,
-		// Remove base image top layer:
-		DevboxOptions: types.DevboxOptions{
-			RemoveBaseImageTopLayer: c.mergeBaseImageTopLayer,
-		},
-	}
+	opt := c.newCommitOptions()
 
 	// commit container
 	err = container.Commit(ctx, c.containerdClient, commitImage, containerID, opt)
@@ -455,10 +662,9 @@ func (c *CommitterImpl) RemoveImages(
 		}
 	}
 
-	global := NewGlobalOptionConfig()
 	opt := types.ImageRemoveOptions{
 		Stdout:   io.Discard,
-		GOptions: *global,
+		GOptions: *c.globalOptions,
 		Force:    force,
 		Async:    async,
 	}
@@ -563,6 +769,14 @@ func convertMapToSlice(labels map[string]string) []string {
 		slice = append(slice, fmt.Sprintf("%s=%s", key, value))
 	}
 	return slice
+}
+
+func newGlobalOptionConfigWithSnapshotter(snapshotter string) *types.GlobalCommandOptions {
+	cfg := NewGlobalOptionConfig()
+	if snapshotter != "" {
+		cfg.Snapshotter = snapshotter
+	}
+	return cfg
 }
 
 // NewGlobalOptionConfig new global option config

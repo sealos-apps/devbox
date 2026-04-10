@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -105,6 +106,8 @@ func main() {
 	var defaultBaseImage string
 	// when this option is enabled, the controller will set up the block io resource configuration of a devbox pod
 	var enableBlockIOResouce bool
+	// commit options: network mode
+	var networkMode string
 	flag.StringVar(
 		&defaultBaseImage,
 		"default-base-image",
@@ -253,6 +256,12 @@ func main() {
 		"enable-block-io-resource",
 		false,
 		"If this option is set to true, the controller will set up the block io resource configuration of a devbox pod",
+	)
+	flag.StringVar(
+		&networkMode,
+		"network-mode",
+		commit.DefaultNetworkMode,
+		"The network mode for devbox containers during commit",
 	)
 	opts := zap.Options{
 		Development: true,
@@ -415,14 +424,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	committer, err := commit.NewCommitter(
+	devboxCommitter, err := commit.NewCommitter(
 		registryAddr,
 		registryUser,
 		registryPassword,
 		mergeBaseImageTopLayer,
+		commit.DefaultDevboxSnapshotter,
+		networkMode,
 	)
 	if err != nil {
-		setupLog.Error(err, "unable to create committer")
+		setupLog.Error(err, "unable to create devbox committer")
+		os.Exit(1)
+	}
+
+	stargzCommitter, err := commit.NewCommitter(
+		registryAddr,
+		registryUser,
+		registryPassword,
+		mergeBaseImageTopLayer,
+		commit.DevboxStargzSnapshotter,
+		networkMode,
+	)
+	if err != nil {
+		setupLog.Error(err, "unable to create stargz committer")
 		os.Exit(1)
 	}
 
@@ -432,10 +456,13 @@ func main() {
 	// }
 
 	stateChangeHandler := controller.EventHandler{
-		Client:              mgr.GetClient(),
-		Scheme:              mgr.GetScheme(),
-		Recorder:            mgr.GetEventRecorderFor("state-change-handler"),
-		Committer:           committer,
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("state-change-handler"),
+		Committers: map[string]commit.Committer{
+			commit.DefaultDevboxSnapshotter: devboxCommitter,
+			commit.DevboxStargzSnapshotter:  stargzCommitter,
+		},
 		CommitImageRegistry: registryAddr,
 		NodeName:            nodes.GetNodeName(),
 		Logger:              ctrl.Log.WithName("state-change-handler"),
