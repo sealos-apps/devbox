@@ -356,8 +356,10 @@ func (h *EventHandler) commitDevbox(
 	removeImageNames := make([]string, 0, 2)
 	defer func() {
 		// remove container whether commit success or not
-		if err := h.Committer.RemoveContainers(ctx, []string{containerID}); err != nil {
-			h.Logger.Error(err, "failed to remove container", "containerID", containerID)
+		if containerID != "" {
+			if err := h.Committer.RemoveContainers(ctx, []string{containerID}); err != nil {
+				h.Logger.Error(err, "failed to remove container", "containerID", containerID)
+			}
 		}
 		// remove after push image whether push success
 		if len(removeImageNames) > 0 {
@@ -371,58 +373,73 @@ func (h *EventHandler) commitDevbox(
 			}
 		}
 	}()
-	if containerID, commitErr = h.Committer.Commit(
-		ctx,
-		devbox.Name,
-		devbox.Status.ContentID,
-		baseImage,
-		commitImage,
-	); commitErr != nil {
-		h.Logger.Error(commitErr, "failed to commit devbox", "devbox", devbox.Name)
-		// Update commit status to failed on commit error with retry
-		updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			latestDevbox := &devboxv1alpha2.Devbox{}
-			if err := h.Client.Get(
-				ctx,
-				types.NamespacedName{Namespace: devbox.Namespace, Name: devbox.Name},
-				latestDevbox,
-			); err != nil {
-				// If devbox is not found, return the error
-				// RetryOnConflict will return this error immediately without retrying
-				if apierrors.IsNotFound(err) {
+	imageExists, err := h.Committer.ImageExists(ctx, commitImage)
+	if err != nil {
+		h.Logger.Error(err, "failed to check local commit image", "commitImage", commitImage)
+		return err
+	}
+	if imageExists {
+		h.Logger.Info(
+			"commit image already exists locally, skip commit and push directly",
+			"devbox",
+			devbox.Name,
+			"commitImage",
+			commitImage,
+		)
+	} else {
+		if containerID, commitErr = h.Committer.Commit(
+			ctx,
+			devbox.Name,
+			devbox.Status.ContentID,
+			baseImage,
+			commitImage,
+		); commitErr != nil {
+			h.Logger.Error(commitErr, "failed to commit devbox", "devbox", devbox.Name)
+			// Update commit status to failed on commit error with retry
+			updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				latestDevbox := &devboxv1alpha2.Devbox{}
+				if err := h.Client.Get(
+					ctx,
+					types.NamespacedName{Namespace: devbox.Namespace, Name: devbox.Name},
+					latestDevbox,
+				); err != nil {
+					// If devbox is not found, return the error
+					// RetryOnConflict will return this error immediately without retrying
+					if apierrors.IsNotFound(err) {
+						return err
+					}
 					return err
 				}
-				return err
-			}
-			latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].CommitStatus = devboxv1alpha2.CommitStatusFailed
-			latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].UpdateTime = metav1.Now()
-			latestDevbox.SetCondition(metav1.Condition{
-				Type:               devboxv1alpha2.DevboxConditionCommitInProgress,
-				Status:             metav1.ConditionFalse,
-				ObservedGeneration: latestDevbox.Generation,
-				Reason:             devboxv1alpha2.DevboxReasonCommitFailed,
-				Message:            "commit workflow failed",
-				LastTransitionTime: metav1.Now(),
+				latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].CommitStatus = devboxv1alpha2.CommitStatusFailed
+				latestDevbox.Status.CommitRecords[latestDevbox.Status.ContentID].UpdateTime = metav1.Now()
+				latestDevbox.SetCondition(metav1.Condition{
+					Type:               devboxv1alpha2.DevboxConditionCommitInProgress,
+					Status:             metav1.ConditionFalse,
+					ObservedGeneration: latestDevbox.Generation,
+					Reason:             devboxv1alpha2.DevboxReasonCommitFailed,
+					Message:            "commit workflow failed",
+					LastTransitionTime: metav1.Now(),
+				})
+				return h.Client.Status().Update(ctx, latestDevbox)
 			})
-			return h.Client.Status().Update(ctx, latestDevbox)
-		})
-		if updateErr != nil {
-			if apierrors.IsNotFound(updateErr) {
-				h.Logger.Info(
-					"devbox not found when updating commit status to failed",
+			if updateErr != nil {
+				if apierrors.IsNotFound(updateErr) {
+					h.Logger.Info(
+						"devbox not found when updating commit status to failed",
+						"devbox",
+						devbox.Name,
+					)
+					return updateErr
+				}
+				h.Logger.Error(
+					updateErr,
+					"failed to update commit status to failed",
 					"devbox",
 					devbox.Name,
 				)
-				return updateErr
 			}
-			h.Logger.Error(
-				updateErr,
-				"failed to update commit status to failed",
-				"devbox",
-				devbox.Name,
-			)
+			return commitErr
 		}
-		return commitErr
 	}
 	if err := h.Client.Get(
 		ctx,
@@ -482,6 +499,7 @@ func (h *EventHandler) commitDevbox(
 		}
 		return err
 	}
+	h.Logger.Info("push commit image success", "commitImage", commitImage)
 	removeImageNames = append(removeImageNames, commitImage, baseImage)
 	// step 2: update devbox commit record
 	// step 3: update devbox status state to shutdown
@@ -545,14 +563,26 @@ func (h *EventHandler) commitDevbox(
 		return err
 	}
 	// step 5: set LV removable
-	if err := h.Committer.SetLvRemovable(ctx, containerID, oldContentID); err != nil {
-		h.Logger.Error(
-			err,
-			"failed to set LV removable",
-			"containerID",
-			containerID,
+	if containerID != "" {
+		if err := h.Committer.SetLvRemovable(ctx, containerID, oldContentID); err != nil {
+			h.Logger.Error(
+				err,
+				"failed to set LV removable",
+				"containerID",
+				containerID,
+				"contentID",
+				oldContentID,
+			)
+		}
+	} else {
+		h.Logger.Info(
+			"skip set LV removable because commit container was not created in this round",
+			"devbox",
+			devbox.Name,
 			"contentID",
 			oldContentID,
+			"commitImage",
+			commitImage,
 		)
 	}
 	return nil

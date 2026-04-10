@@ -15,6 +15,7 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes/docker/config"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/nerdctl/v2/pkg/api/types"
 	"github.com/containerd/nerdctl/v2/pkg/cmd/container"
 	"github.com/containerd/nerdctl/v2/pkg/cmd/image"
@@ -32,6 +33,7 @@ type Committer interface {
 		ctx context.Context,
 		devboxName, contentID, baseImage, commitImage string,
 	) (string, error)
+	ImageExists(ctx context.Context, imageName string) (bool, error)
 	Push(ctx context.Context, imageName string) error
 	RemoveImages(ctx context.Context, imageNames []string, force, async bool) error
 	RemoveContainers(ctx context.Context, containerNames []string) error
@@ -352,6 +354,28 @@ func (c *CommitterImpl) Commit(
 	}
 
 	return containerID, nil
+}
+
+// ImageExists checks whether image metadata exists in local containerd.
+func (c *CommitterImpl) ImageExists(ctx context.Context, imageName string) (bool, error) {
+	ctx = namespaces.WithNamespace(ctx, DefaultNamespace)
+
+	// check connection status, if connection is bad, try to reconnect
+	if err := c.CheckConnection(ctx); err != nil {
+		log.Printf("Connection check failed: %v, attempting to reconnect...", err)
+		if reconnectErr := c.Reconnect(ctx); reconnectErr != nil {
+			return false, fmt.Errorf("failed to reconnect: %w", reconnectErr)
+		}
+	}
+
+	_, err := c.containerdClient.GetImage(ctx, imageName)
+	if err == nil {
+		return true, nil
+	}
+	if cerrdefs.IsNotFound(err) {
+		return false, nil
+	}
+	return false, fmt.Errorf("failed to check local image %s: %w", imageName, err)
 }
 
 // GetContainerAnnotations get container annotations
