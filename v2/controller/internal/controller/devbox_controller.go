@@ -83,9 +83,12 @@ type DevboxReconciler struct {
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes/status,verbs=get
 // +kubebuilder:rbac:groups="",resources=services,verbs=*
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=*
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=*
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=*
 // +kubebuilder:rbac:groups="",resources=events,verbs=*
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=*
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=*
 
 func (r *DevboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("devbox", req.NamespacedName)

@@ -3256,6 +3256,18 @@ spec:
                 type: object
               image:
                 type: string
+              kubeAccess:
+                properties:
+                  enabled:
+                    type: boolean
+                  roleTemplate:
+                    default: edit
+                    enum:
+                    - view
+                    - edit
+                    - admin
+                    type: string
+                type: object
               network:
                 properties:
                   extraPorts:

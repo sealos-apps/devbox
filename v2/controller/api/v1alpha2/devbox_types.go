@@ -99,6 +99,23 @@ type NetworkSpec struct {
 	ExtraPorts []corev1.ContainerPort `json:"extraPorts,omitempty"`
 }
 
+type KubeAccessRoleTemplate string
+
+const (
+	KubeAccessRoleTemplateView  KubeAccessRoleTemplate = "view"
+	KubeAccessRoleTemplateEdit  KubeAccessRoleTemplate = "edit"
+	KubeAccessRoleTemplateAdmin KubeAccessRoleTemplate = "admin"
+)
+
+type KubeAccessSpec struct {
+	// +kubebuilder:validation:Optional
+	Enabled bool `json:"enabled,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=view;edit;admin
+	// +kubebuilder:default=edit
+	RoleTemplate KubeAccessRoleTemplate `json:"roleTemplate,omitempty"`
+}
+
 type Config struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=devbox
@@ -173,6 +190,8 @@ type DevboxSpec struct {
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 	// +kubebuilder:validation:Optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// +kubebuilder:validation:Optional
+	KubeAccess *KubeAccessSpec `json:"kubeAccess,omitempty"`
 }
 
 type NetworkStatus struct {

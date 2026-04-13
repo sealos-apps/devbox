@@ -3264,6 +3264,18 @@ spec:
                 type: object
               image:
                 type: string
+              kubeAccess:
+                properties:
+                  enabled:
+                    type: boolean
+                  roleTemplate:
+                    default: edit
+                    enum:
+                    - view
+                    - edit
+                    - admin
+                    type: string
+                type: object
               network:
                 properties:
                   extraPorts:
@@ -4225,6 +4237,7 @@ rules:
   - events
   - pods
   - secrets
+  - serviceaccounts
   - services
   verbs:
   - '*'
@@ -4287,6 +4300,13 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - '*'
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

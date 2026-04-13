@@ -11,6 +11,7 @@ rules:
   - events
   - pods
   - secrets
+  - serviceaccounts
   - services
   verbs:
   - '*'
@@ -73,3 +74,10 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - '*'

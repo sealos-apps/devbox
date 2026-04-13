@@ -37,6 +37,27 @@ import (
 
 const (
 	DevBoxPartOf = "devbox"
+
+	ManagedKubeAccessNameSuffix = "kubeaccess"
+
+	ManagedKubeAccessTokenVolumeName      = "devbox-kube-api-access"
+	ManagedKubeAccessTokenMountPath       = "/var/run/sealos/kube-api-access"
+	ManagedKubeAccessTokenFilePath        = ManagedKubeAccessTokenMountPath + "/token"
+	ManagedKubeAccessTokenCAFilePath      = ManagedKubeAccessTokenMountPath + "/ca.crt"
+	ManagedKubeAccessTokenNamespacePath   = ManagedKubeAccessTokenMountPath + "/namespace"
+	ManagedKubeAccessDefaultTokenDuration = int64(3600)
+
+	ManagedKubeconfigVolumeName  = "devbox-kubeconfig"
+	ManagedKubeconfigMountPath   = "/var/run/sealos/kubeconfig/config"
+	ManagedKubeconfigEnvName     = "KUBECONFIG"
+	ManagedKubeconfigSecretKey   = "SEALOS_DEVBOX_KUBECONFIG"
+	ManagedKubeconfigClusterName = "in-cluster"
+	ManagedKubeconfigContextName = "devbox-context"
+	ManagedKubeconfigUserName    = "devbox-user"
+	ManagedKubeconfigDefaultNS   = "default"
+	ManagedKubeconfigDefaultHost = "https://kubernetes.default.svc"
+	KubeRootCAConfigMapName      = "kube-root-ca.crt"
+	KubeRootCAConfigMapKey       = "ca.crt"
 )
 
 type DevboxPodOptions func(pod *corev1.Pod)
@@ -182,6 +203,30 @@ func WithPodLabels(labels map[string]string) DevboxPodOptions {
 func WithPodNodeName(nodeName string) DevboxPodOptions {
 	return func(pod *corev1.Pod) {
 		pod.Spec.NodeName = nodeName
+	}
+}
+
+func WithPodServiceAccountName(serviceAccountName string) DevboxPodOptions {
+	return func(pod *corev1.Pod) {
+		pod.Spec.ServiceAccountName = strings.TrimSpace(serviceAccountName)
+	}
+}
+
+func WithPodKubeconfigEnv() DevboxPodOptions {
+	return func(pod *corev1.Pod) {
+		if len(pod.Spec.Containers) == 0 {
+			return
+		}
+		envVar := corev1.EnvVar{Name: ManagedKubeconfigEnvName, Value: ManagedKubeconfigMountPath}
+		container := &pod.Spec.Containers[0]
+		for i := range container.Env {
+			if container.Env[i].Name == ManagedKubeconfigEnvName {
+				container.Env[i].Value = ManagedKubeconfigMountPath
+				container.Env[i].ValueFrom = nil
+				return
+			}
+		}
+		container.Env = append(container.Env, envVar)
 	}
 }
 
@@ -434,5 +479,159 @@ func GenerateStartupVolumeMounts() []corev1.VolumeMount {
 			SubPath:   "startup.sh",
 			ReadOnly:  true,
 		},
+	}
+}
+
+func GenerateManagedKubeAccessServiceAccountName(devbox *devboxv1alpha2.Devbox) string {
+	return fmt.Sprintf("%s-%s", devbox.Name, ManagedKubeAccessNameSuffix)
+}
+
+func GenerateManagedKubeAccessRoleBindingName(devbox *devboxv1alpha2.Devbox) string {
+	return fmt.Sprintf("%s-%s", devbox.Name, ManagedKubeAccessNameSuffix)
+}
+
+func RenderManagedKubeconfig(
+	namespace string,
+	server string,
+	caFilePath string,
+	tokenFilePath string,
+) []byte {
+	resolvedNamespace := strings.TrimSpace(namespace)
+	if resolvedNamespace == "" {
+		resolvedNamespace = ManagedKubeconfigDefaultNS
+	}
+	resolvedServer := strings.TrimSpace(server)
+	if resolvedServer == "" {
+		resolvedServer = ManagedKubeconfigDefaultHost
+	}
+	resolvedCAFilePath := strings.TrimSpace(caFilePath)
+	if resolvedCAFilePath == "" {
+		resolvedCAFilePath = ManagedKubeAccessTokenCAFilePath
+	}
+	resolvedTokenFilePath := strings.TrimSpace(tokenFilePath)
+	if resolvedTokenFilePath == "" {
+		resolvedTokenFilePath = ManagedKubeAccessTokenFilePath
+	}
+
+	return []byte(fmt.Sprintf(`apiVersion: v1
+kind: Config
+clusters:
+- name: %s
+  cluster:
+    server: %s
+    certificate-authority: %s
+contexts:
+- name: %s
+  context:
+    cluster: %s
+    user: %s
+    namespace: %s
+current-context: %s
+users:
+- name: %s
+  user:
+    tokenFile: %s
+`,
+		ManagedKubeconfigClusterName,
+		resolvedServer,
+		resolvedCAFilePath,
+		ManagedKubeconfigContextName,
+		ManagedKubeconfigClusterName,
+		ManagedKubeconfigUserName,
+		resolvedNamespace,
+		ManagedKubeconfigContextName,
+		ManagedKubeconfigUserName,
+		resolvedTokenFilePath,
+	))
+}
+
+func GenerateManagedKubeAccessTokenVolume() corev1.Volume {
+	return corev1.Volume{
+		Name: ManagedKubeAccessTokenVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Projected: &corev1.ProjectedVolumeSource{
+				DefaultMode: ptr.To(int32(420)),
+				Sources: []corev1.VolumeProjection{
+					{
+						ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+							Path:              "token",
+							ExpirationSeconds: ptr.To(ManagedKubeAccessDefaultTokenDuration),
+						},
+					},
+					{
+						ConfigMap: &corev1.ConfigMapProjection{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: KubeRootCAConfigMapName,
+							},
+							Items: []corev1.KeyToPath{
+								{
+									Key:  KubeRootCAConfigMapKey,
+									Path: "ca.crt",
+								},
+							},
+						},
+					},
+					{
+						DownwardAPI: &corev1.DownwardAPIProjection{
+							Items: []corev1.DownwardAPIVolumeFile{
+								{
+									Path: "namespace",
+									FieldRef: &corev1.ObjectFieldSelector{
+										APIVersion: "v1",
+										FieldPath:  "metadata.namespace",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func GenerateManagedKubeAccessTokenVolumeMount() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      ManagedKubeAccessTokenVolumeName,
+			MountPath: ManagedKubeAccessTokenMountPath,
+			ReadOnly:  true,
+		},
+	}
+}
+
+func GenerateManagedKubeconfigVolume(devbox *devboxv1alpha2.Devbox) corev1.Volume {
+	return corev1.Volume{
+		Name: ManagedKubeconfigVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: devbox.Name,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  ManagedKubeconfigSecretKey,
+						Path: "config",
+					},
+				},
+				DefaultMode: ptr.To(int32(420)),
+			},
+		},
+	}
+}
+
+func GenerateManagedKubeconfigVolumeMount() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      ManagedKubeconfigVolumeName,
+			MountPath: ManagedKubeconfigMountPath,
+			SubPath:   "config",
+			ReadOnly:  true,
+		},
+	}
+}
+
+func GenerateManagedKubeconfigEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name:  ManagedKubeconfigEnvName,
+		Value: ManagedKubeconfigMountPath,
 	}
 }

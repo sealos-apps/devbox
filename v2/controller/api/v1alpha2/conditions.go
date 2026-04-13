@@ -23,6 +23,7 @@ const (
 	DevboxConditionSecretSynced           = "SecretSynced"
 	DevboxConditionStartupConfigMapSynced = "StartupConfigMapSynced"
 	DevboxConditionNetworkSynced          = "NetworkSynced"
+	DevboxConditionKubeAccessSynced       = "KubeAccessSynced"
 	DevboxConditionPodSynced              = "PodSynced"
 	DevboxConditionPhaseSynced            = "PhaseSynced"
 )
