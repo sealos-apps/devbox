@@ -302,6 +302,11 @@ func GenerateEnvProfile(devbox *devboxv1alpha2.Devbox, devboxJWTSecret []byte) [
 	envProfile = append(
 		envProfile,
 		[]byte(fmt.Sprintf("export DEVBOX_JWT_SECRET=\"%s\"\n", devboxJWTSecret))...)
+	if devbox != nil && devbox.Spec.KubeAccess != nil && devbox.Spec.KubeAccess.Enabled {
+		envProfile = append(
+			envProfile,
+			[]byte(fmt.Sprintf("export %s=\"%s\"\n", ManagedKubeconfigEnvName, ManagedKubeconfigMountPath))...)
+	}
 	return envProfile
 }
 
