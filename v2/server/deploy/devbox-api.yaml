@@ -1,0 +1,197 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devbox-server
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devbox-server-jwt-key
+  namespace: devbox-server
+type: Opaque
+stringData:
+  jwt-signing.key: jwtsigningkey
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devbox-server-config
+  namespace: devbox-server
+data:
+  config.yaml: |
+    server:
+      listenAddress: ":8090"
+      gatewayListenAddress: ":8091"
+      logLevel: "info"
+      lifecycleResyncInterval: "30m"
+    auth:
+      jwtSigningKeyFile: "/etc/devbox-server/secret/jwt-signing.key"
+    ssh:
+      user: "devbox"
+      host: "hzh.sealos.run"
+      port: 2233
+      privateKeySecretKey: "SEALOS_DEVBOX_PRIVATE_KEY"
+    gateway:
+      domain: "devbox-gateway.hzh.sealos.run"
+      pathPrefix: "/codex"
+      port: 1317
+      ssePath: "/sse"
+    devbox:
+      createDefaults:
+        image: "ghcr.io/lingdie/devbox-base-expt/sandbox-latest:v1.2.0-en-us"
+        storageLimit: "1Gi"
+        resource:
+          cpu: "200m"
+          memory: "512Mi"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devbox-server
+  namespace: devbox-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: devbox-server
+rules:
+  - apiGroups: ["devbox.sealos.io"]
+    resources: ["devboxes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: devbox-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: devbox-server
+subjects:
+  - kind: ServiceAccount
+    name: devbox-server
+    namespace: devbox-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: devbox-server-leader-election
+  namespace: devbox-server
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devbox-server-leader-election
+  namespace: devbox-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: devbox-server-leader-election
+subjects:
+  - kind: ServiceAccount
+    name: devbox-server
+    namespace: devbox-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devbox-server
+  namespace: devbox-server
+  labels:
+    app: devbox-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devbox-server
+  template:
+    metadata:
+      labels:
+        app: devbox-server
+    spec:
+      serviceAccountName: devbox-server
+      containers:
+        - name: devbox-server
+          image: registry.cn-hangzhou.aliyuncs.com/lingdie/devbox-server:v1.1.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          args:
+            - "--config=/etc/devbox-server/config/config.yaml"
+          ports:
+            - name: http
+              containerPort: 8090
+            - name: gateway
+              containerPort: 8091
+          volumeMounts:
+            - name: config
+              mountPath: /etc/devbox-server/config
+              readOnly: true
+            - name: secret-jwt-key
+              mountPath: /etc/devbox-server/secret
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: devbox-server-config
+        - name: secret-jwt-key
+          secret:
+            secretName: devbox-server-jwt-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devbox-server
+  namespace: devbox-server
+  labels:
+    app: devbox-server
+spec:
+  type: ClusterIP
+  selector:
+    app: devbox-server
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http
+    - name: gateway
+      port: 8091
+      targetPort: gateway

@@ -1,0 +1,74 @@
+# Devbox API server configuration.
+#
+# This file is loaded by: --config <path>
+
+server:
+  # HTTP listen address.
+  # Example: ":8090", "0.0.0.0:8090"
+  listenAddress: ":8090"
+
+  # Gateway reverse-proxy listen address.
+  # This serves the external path-based app traffic, e.g. /codex/{uniqueID}.
+  gatewayListenAddress: ":8091"
+
+  # Log level for structured logs.
+  # Supported values: debug, info, warn, error
+  logLevel: "info"
+
+  # Lifecycle full-resync interval (Go duration format, e.g. "30m", "1h").
+  lifecycleResyncInterval: "30m"
+
+auth:
+  # JWT signing key for verifying Bearer token signature (HS256).
+  jwtSigningKey: "jwtsigningkey"
+
+  # Optional JWT signing key file path.
+  # Relative path is resolved against this config file directory.
+  # jwtSigningKeyFile: "./jwt-signing.key"
+
+ssh:
+  # SSH username used in generated connection target/command.
+  user: "devbox"
+
+  # SSH host exposed by your gateway or service.
+  host: "staging-usw-1.sealos.io"
+
+  # SSH port exposed by your gateway or service.
+  port: 2233
+
+  # Secret key name that stores devbox private key in Secret <namespace>/<devbox-name>.
+  # privateKeySecretKey: "SEALOS_DEVBOX_PRIVATE_KEY"
+
+gateway:
+  # External gateway domain for app ingress.
+  # The server will build app URLs as:
+  # https://<domain><pathPrefix>/<status.network.uniqueID>
+  # Example:
+  # domain: "devbox-gateway.staging-usw-1.sealos.io"
+  domain: ""
+
+  # Fixed path prefix used by the external app ingress.
+  # Example route:
+  # https://devbox-gateway.staging-usw-1.sealos.io/codex/piano-stay-ndor
+  pathPrefix: "/codex"
+
+  # Default in-devbox gateway port exposed by the app ingress.
+  port: 1317
+
+  # SSE path on the app gateway.
+  ssePath: "/sse"
+
+devbox:
+  createDefaults:
+    # Runtime image for newly created devbox.
+    image: "ghcr.io/labring-actions/devbox-runtime-expt/python-3.12:v2.5.0-zh-cn"
+
+    # Storage limit for newly created devbox.
+    storageLimit: "1Gi"
+
+    resource:
+      # CPU limit for newly created devbox.
+      cpu: "200m"
+
+      # Memory limit for newly created devbox.
+      memory: "512Mi"

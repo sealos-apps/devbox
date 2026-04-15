@@ -1,0 +1,4 @@
+interface:
+  display_name: "Devbox API Helper"
+  short_description: "Operate devbox server APIs with JWT"
+  default_prompt: "Use this skill to call, validate, and troubleshoot the Devbox REST API for external clients. First ask the user for DEVBOX_SERVER_HOST and DEVBOX_SERVER_TOKEN before generating curl commands."
