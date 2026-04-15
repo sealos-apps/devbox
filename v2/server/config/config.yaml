@@ -55,9 +55,6 @@ gateway:
   # Default in-devbox gateway port exposed by the app ingress.
   port: 1317
 
-  # SSE path on the app gateway.
-  ssePath: "/sse"
-
 devbox:
   createDefaults:
     # Runtime image for newly created devbox.

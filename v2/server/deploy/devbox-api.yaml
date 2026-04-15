@@ -35,10 +35,9 @@ data:
       domain: "devbox-gateway.hzh.sealos.run"
       pathPrefix: "/codex"
       port: 1317
-      ssePath: "/sse"
     devbox:
       createDefaults:
-        image: "ghcr.io/lingdie/devbox-base-expt/sandbox-latest:v1.2.0-en-us"
+        image: "ghcr.io/labring-actions/devbox-base-expt/sandbox-v1:latest-en-us-amd64"
         storageLimit: "1Gi"
         resource:
           cpu: "200m"
@@ -125,7 +124,7 @@ spec:
       serviceAccountName: devbox-server
       containers:
         - name: devbox-server
-          image: registry.cn-hangzhou.aliyuncs.com/lingdie/devbox-server:v1.1.2
+          image: registry.cn-hangzhou.aliyuncs.com/lingdie/devbox-server:4.15.2
           imagePullPolicy: IfNotPresent
           env:
             - name: POD_NAME

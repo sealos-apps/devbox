@@ -13,7 +13,6 @@ func TestGatewayIndexTracksLatestUniqueID(t *testing.T) {
 				Domain:     "devbox-gateway.staging-usw-1.sealos.io",
 				PathPrefix: "/codex",
 				Port:       1317,
-				SSEPath:    "/sse",
 			},
 		},
 	}
@@ -31,9 +30,6 @@ func TestGatewayIndexTracksLatestUniqueID(t *testing.T) {
 	}
 	if entry.URL != "https://devbox-gateway.staging-usw-1.sealos.io/codex/piano-stay-ndor" {
 		t.Fatalf("unexpected gateway url: %s", entry.URL)
-	}
-	if entry.SSEURL != "https://devbox-gateway.staging-usw-1.sealos.io/codex/piano-stay-ndor/sse" {
-		t.Fatalf("unexpected gateway sseURL: %s", entry.SSEURL)
 	}
 
 	devbox.Status.Network.UniqueID = "new-unique-id"

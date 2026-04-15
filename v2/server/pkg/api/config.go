@@ -25,7 +25,6 @@ const (
 	defaultCreateImage       = "ghcr.io/labring-actions/devbox-runtime-expt/python-3.12:v2.5.0-zh-cn"
 	defaultGatewayPathPrefix = "/codex"
 	defaultGatewayPort       = 1317
-	defaultGatewaySSEPath    = "/sse"
 	defaultLogLevel          = slog.LevelInfo
 )
 
@@ -51,7 +50,6 @@ type GatewayConfig struct {
 	Domain     string
 	PathPrefix string
 	Port       int
-	SSEPath    string
 }
 
 type CreateDevboxResourceConfig struct {
@@ -210,17 +208,6 @@ func loadServerConfig(configPath string) (ServerConfig, error) {
 	if gatewayPort < 1 || gatewayPort > 65535 {
 		return ServerConfig{}, fmt.Errorf("gateway.port must be in [1, 65535]")
 	}
-	gatewaySSEPath := strings.TrimSpace(fc.Gateway.SSEPath)
-	if gatewaySSEPath == "" {
-		gatewaySSEPath = defaultGatewaySSEPath
-	}
-	if !strings.HasPrefix(gatewaySSEPath, "/") {
-		return ServerConfig{}, fmt.Errorf("gateway.ssePath must start with '/'")
-	}
-	gatewaySSEPath = path.Clean(gatewaySSEPath)
-	if gatewaySSEPath != "/" {
-		gatewaySSEPath = strings.TrimRight(gatewaySSEPath, "/")
-	}
 
 	cfg := ServerConfig{
 		Addr:                    strings.TrimSpace(fc.Server.ListenAddress),
@@ -238,7 +225,6 @@ func loadServerConfig(configPath string) (ServerConfig, error) {
 			Domain:     gatewayDomain,
 			PathPrefix: gatewayPathPrefix,
 			Port:       gatewayPort,
-			SSEPath:    gatewaySSEPath,
 		},
 		CreateResource: CreateDevboxResourceConfig{
 			CPU:          cpu,

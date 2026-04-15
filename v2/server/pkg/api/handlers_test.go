@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -388,7 +389,6 @@ func TestHandleGetDevboxInfoIncludesGateway(t *testing.T) {
 		Domain:     "devbox-gateway.staging-usw-1.sealos.io",
 		PathPrefix: "/codex",
 		Port:       1317,
-		SSEPath:    "/sse",
 	}
 
 	secret := &corev1.Secret{
@@ -420,10 +420,8 @@ func TestHandleGetDevboxInfoIncludesGateway(t *testing.T) {
 			Name    string `json:"name"`
 			Gateway struct {
 				URL      string `json:"url"`
-				SSEURL   string `json:"sseURL"`
 				Token    string `json:"token"`
 				Port     int    `json:"port"`
-				SSEPath  string `json:"ssePath"`
 				UniqueID string `json:"uniqueID"`
 			} `json:"gateway"`
 			SSH struct {
@@ -443,11 +441,15 @@ func TestHandleGetDevboxInfoIncludesGateway(t *testing.T) {
 	if payload.Data.Gateway.URL != "https://devbox-gateway.staging-usw-1.sealos.io/codex/demo-unique-id" {
 		t.Fatalf("unexpected gateway url: %s", payload.Data.Gateway.URL)
 	}
-	if payload.Data.Gateway.SSEURL != "https://devbox-gateway.staging-usw-1.sealos.io/codex/demo-unique-id/sse" {
-		t.Fatalf("unexpected gateway sseURL: %s", payload.Data.Gateway.SSEURL)
+	claims := decodeGatewayTokenClaimsForTest(t, payload.Data.Gateway.Token, "devbox-jwt-secret", time.Now().UTC())
+	if claims.Namespace != "ns-test" {
+		t.Fatalf("unexpected gateway token namespace: %s", claims.Namespace)
 	}
-	if payload.Data.Gateway.Token != "devbox-jwt-secret" {
-		t.Fatalf("unexpected gateway token: %s", payload.Data.Gateway.Token)
+	if claims.DevboxName != "demo-devbox" {
+		t.Fatalf("unexpected gateway token devboxName: %s", claims.DevboxName)
+	}
+	if claims.Exp <= claims.Iat {
+		t.Fatalf("unexpected gateway token lifetime: iat=%d exp=%d", claims.Iat, claims.Exp)
 	}
 	if payload.Data.Gateway.UniqueID != "demo-unique-id" {
 		t.Fatalf("unexpected uniqueID: %s", payload.Data.Gateway.UniqueID)
@@ -511,4 +513,31 @@ func issueBearerTokenForNamespace(t *testing.T, namespace string) string {
 		Exp:       now.Unix() + 3600,
 	})
 	return "Bearer " + token
+}
+
+func decodeGatewayTokenClaimsForTest(t *testing.T, token string, signingKey string, now time.Time) gatewayTokenClaims {
+	t.Helper()
+
+	claims, err := verifyJWTToken(token, signingKey, now)
+	if err != nil {
+		t.Fatalf("verify gateway token failed: %v", err)
+	}
+	if claims.Namespace == "" {
+		t.Fatalf("expected namespace claim in gateway token")
+	}
+
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		t.Fatalf("unexpected jwt token format")
+	}
+	claimBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		t.Fatalf("decode gateway token claims failed: %v", err)
+	}
+
+	var gatewayClaims gatewayTokenClaims
+	if err := json.Unmarshal(claimBytes, &gatewayClaims); err != nil {
+		t.Fatalf("unmarshal gateway token claims failed: %v", err)
+	}
+	return gatewayClaims
 }

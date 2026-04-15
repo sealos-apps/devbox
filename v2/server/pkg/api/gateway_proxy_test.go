@@ -63,12 +63,11 @@ func TestHandleGatewayProxyForwardsToHeadlessService(t *testing.T) {
 		Domain:     "devbox-gateway.staging-usw-1.sealos.io",
 		PathPrefix: "/codex",
 		Port:       1317,
-		SSEPath:    "/sse",
 	}
 	srv.syncGatewayIndex(devbox)
 	srv.gatewayProxyTransport = newTestGatewayProxyTransport(t, upstream.URL)
 
-	req := httptest.NewRequest(http.MethodGet, "/codex/demo-unique-id/sse?watch=1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/codex/demo-unique-id/api/status?watch=1", nil)
 	req.Host = "devbox-gateway.staging-usw-1.sealos.io"
 	req.Header.Set("X-Forwarded-Proto", "https")
 	req.Header.Set("Authorization", "Bearer devbox-jwt-secret")
@@ -84,7 +83,7 @@ func TestHandleGatewayProxyForwardsToHeadlessService(t *testing.T) {
 	}
 
 	upstreamReq := <-requestCh
-	if upstreamReq.Path != "/sse" {
+	if upstreamReq.Path != "/api/status" {
 		t.Fatalf("unexpected upstream path: %s", upstreamReq.Path)
 	}
 	if upstreamReq.Query != "watch=1" {
@@ -134,7 +133,6 @@ func TestHandleGatewayProxyRewritesLocationAndCookiePath(t *testing.T) {
 		Domain:     "devbox-gateway.staging-usw-1.sealos.io",
 		PathPrefix: "/codex",
 		Port:       1317,
-		SSEPath:    "/sse",
 	}
 	srv.syncGatewayIndex(devbox)
 	srv.gatewayProxyTransport = newTestGatewayProxyTransport(t, upstream.URL)
@@ -165,7 +163,7 @@ func TestHandleGatewayProxyReturnsNotFoundForUnknownUniqueID(t *testing.T) {
 		Port:       1317,
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/codex/missing-id/sse", nil)
+	req := httptest.NewRequest(http.MethodGet, "/codex/missing-id/api/status", nil)
 	resp := httptest.NewRecorder()
 
 	srv.routes().ServeHTTP(resp, req)

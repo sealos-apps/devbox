@@ -141,6 +141,34 @@ func verifyJWTToken(token string, signingKey string, now time.Time) (jwtClaims, 
 	return claims, nil
 }
 
+func signJWTToken(signingKey string, claims interface{}) (string, error) {
+	signingKey = strings.TrimSpace(signingKey)
+	if signingKey == "" {
+		return "", errors.New("empty jwt signing key")
+	}
+
+	headerBytes, err := json.Marshal(jwtHeader{
+		Alg: "HS256",
+		Typ: "JWT",
+	})
+	if err != nil {
+		return "", fmt.Errorf("marshal jwt header failed: %w", err)
+	}
+	claimBytes, err := json.Marshal(claims)
+	if err != nil {
+		return "", fmt.Errorf("marshal jwt claims failed: %w", err)
+	}
+
+	headerSeg := base64.RawURLEncoding.EncodeToString(headerBytes)
+	claimSeg := base64.RawURLEncoding.EncodeToString(claimBytes)
+	payload := headerSeg + "." + claimSeg
+
+	mac := hmac.New(sha256.New, []byte(signingKey))
+	_, _ = mac.Write([]byte(payload))
+	sigSeg := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return payload + "." + sigSeg, nil
+}
+
 func namespaceFromContext(ctx context.Context) (string, bool) {
 	if ctx == nil {
 		return "", false

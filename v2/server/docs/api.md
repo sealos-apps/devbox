@@ -247,10 +247,8 @@ curl -sS -X GET "${HOST}/api/v1/devbox/${DEVBOX_NAME}" \
     },
     "gateway": {
       "url": "https://devbox-gateway.staging-usw-1.sealos.io/codex/demo-unique-id",
-      "sseURL": "https://devbox-gateway.staging-usw-1.sealos.io/codex/demo-unique-id/sse",
-      "token": "devbox-jwt-secret",
+      "token": "<signed-gateway-jwt>",
       "port": 1317,
-      "ssePath": "/sse",
       "uniqueID": "demo-unique-id"
     }
   }
@@ -263,9 +261,9 @@ curl -sS -X GET "${HOST}/api/v1/devbox/${DEVBOX_NAME}" \
 - `deletionTimestamp` 在未进入删除流程时为 `null`
 - `ssh.user/host/port` 来自服务端配置文件 `ssh` 段
 - `ssh.privateKeyBase64` 来自 Secret：`<namespace>/<devbox-name>` 的配置键（默认 `SEALOS_DEVBOX_PRIVATE_KEY`）
-- `gateway.token` 返回的是 DevBox Secret 中的 `SEALOS_DEVBOX_JWT_SECRET` 原文，供外部 app ingress 后面的 gateway 鉴权使用
+- `gateway.token` 返回的是服务端用 DevBox Secret 中的 `SEALOS_DEVBOX_JWT_SECRET` 签发的 HS256 JWT，可直接作为 `Authorization: Bearer <token>` 访问 app gateway
+- 该 JWT payload 会包含 `namespace` 和 `devboxName`，并带有过期时间
 - `gateway.url` 由服务端配置项 `gateway.domain + gateway.pathPrefix + status.network.uniqueID` 生成，例如 `https://devbox-gateway.staging-usw-1.sealos.io/codex/demo-unique-id`
-- `gateway.sseURL` 则是在上述路径后拼接 `gateway.ssePath` 得到的典型 SSE 地址
 - 服务端内部会维护一份基于 `status.network.uniqueID` 的内存索引，供后续快速定位对应 Devbox，无需 Redis
 - 当外部 ingress 把 `/codex/*` 转发到 `v2/server` 时，服务端会继续反代到 `http://{uniqueID}.{namespace}.svc.cluster.local:1317`
 

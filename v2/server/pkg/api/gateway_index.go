@@ -15,7 +15,6 @@ type gatewayIndexEntry struct {
 	Name      string
 	UniqueID  string
 	URL       string
-	SSEURL    string
 	Port      int
 	UpdatedAt time.Time
 }
@@ -35,21 +34,6 @@ func gatewayPathPrefix(cfg GatewayConfig) string {
 	return pathPrefix
 }
 
-func gatewaySSEPath(cfg GatewayConfig) string {
-	ssePath := strings.TrimSpace(cfg.SSEPath)
-	if ssePath == "" {
-		ssePath = defaultGatewaySSEPath
-	}
-	if !strings.HasPrefix(ssePath, "/") {
-		ssePath = "/" + ssePath
-	}
-	ssePath = path.Clean(ssePath)
-	if ssePath != "/" {
-		ssePath = strings.TrimRight(ssePath, "/")
-	}
-	return ssePath
-}
-
 func gatewayPort(cfg GatewayConfig) int {
 	if cfg.Port <= 0 {
 		return defaultGatewayPort
@@ -57,18 +41,16 @@ func gatewayPort(cfg GatewayConfig) int {
 	return cfg.Port
 }
 
-func buildGatewayURLs(cfg GatewayConfig, uniqueID string) (string, string, bool) {
+func buildGatewayURLs(cfg GatewayConfig, uniqueID string) (string, bool) {
 	domain := strings.TrimRight(strings.TrimSpace(cfg.Domain), "/")
 	uniqueID = strings.TrimSpace(uniqueID)
 	if domain == "" || uniqueID == "" {
-		return "", "", false
+		return "", false
 	}
 
 	pathPrefix := gatewayPathPrefix(cfg)
-	ssePath := gatewaySSEPath(cfg)
-
 	basePath := path.Join("/", pathPrefix, uniqueID)
-	return "https://" + domain + basePath, "https://" + domain + path.Join(basePath, ssePath), true
+	return "https://" + domain + basePath, true
 }
 
 func buildGatewayIndexEntry(cfg GatewayConfig, devbox *devboxv1alpha2.Devbox) (gatewayIndexEntry, bool) {
@@ -80,13 +62,12 @@ func buildGatewayIndexEntry(cfg GatewayConfig, devbox *devboxv1alpha2.Devbox) (g
 	if uniqueID == "" {
 		return gatewayIndexEntry{}, false
 	}
-	url, sseURL, _ := buildGatewayURLs(cfg, uniqueID)
+	url, _ := buildGatewayURLs(cfg, uniqueID)
 	return gatewayIndexEntry{
 		Namespace: devbox.Namespace,
 		Name:      devbox.Name,
 		UniqueID:  uniqueID,
 		URL:       url,
-		SSEURL:    sseURL,
 		Port:      gatewayPort(cfg),
 		UpdatedAt: time.Now().UTC(),
 	}, true

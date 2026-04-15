@@ -35,6 +35,7 @@ const (
 	defaultExecWorkingDir    = "/home/devbox/workspace"
 	defaultFileTimeoutSecond = 300
 	maxFileTimeoutSecond     = 3600
+	defaultGatewayTokenTTL   = 365 * 24 * time.Hour
 	jwtSecretCacheTTL        = 300 * time.Second
 	defaultSDKServerPort     = 9757
 	sdkServerStatusOperation = 1600
@@ -120,6 +121,13 @@ type sdkServerExecSyncResponse struct {
 type sdkServerResponseEnvelope struct {
 	Status  int    `json:"status"`
 	Message string `json:"message"`
+}
+
+type gatewayTokenClaims struct {
+	Namespace  string `json:"namespace"`
+	DevboxName string `json:"devboxName"`
+	Exp        int64  `json:"exp,omitempty"`
+	Iat        int64  `json:"iat,omitempty"`
 }
 
 func (s *apiServer) routes() http.Handler {
@@ -596,11 +604,19 @@ func (s *apiServer) handleGetDevboxInfo(w http.ResponseWriter, r *http.Request) 
 	s.syncGatewayIndex(devbox)
 
 	sshInfo := buildConfiguredSSHInfo(s.cfg.SSH, privateKeyBase64)
-	gatewayInfo, hasGatewayRoute := buildGatewayInfo(
+	gatewayInfo, hasGatewayRoute, err := buildGatewayInfo(
 		s.cfg.Gateway,
+		namespace,
+		name,
 		devbox.Status.Network.UniqueID,
 		devboxJWTSecret,
+		time.Now().UTC(),
 	)
+	if err != nil {
+		s.logError("issue devbox gateway token failed", err, "namespace", namespace, "name", name)
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("issue devbox gateway token failed: %v", err))
+		return
+	}
 	creationTimestamp := ""
 	if !devbox.CreationTimestamp.IsZero() {
 		creationTimestamp = devbox.CreationTimestamp.UTC().Format(time.RFC3339)
@@ -1563,23 +1579,57 @@ func buildConfiguredSSHInfo(cfg SSHConnectionConfig, privateKeyBase64 string) ma
 
 func buildGatewayInfo(
 	cfg GatewayConfig,
+	namespace string,
+	devboxName string,
 	uniqueID string,
 	devboxJWTSecret string,
-) (map[string]interface{}, bool) {
-	ssePath := gatewaySSEPath(cfg)
-	route, sseURL, hasRoute := buildGatewayURLs(cfg, uniqueID)
+	now time.Time,
+) (map[string]interface{}, bool, error) {
+	route, hasRoute := buildGatewayURLs(cfg, uniqueID)
+	if !hasRoute {
+		return nil, false, nil
+	}
+
+	token, err := issueGatewayAccessToken(namespace, devboxName, devboxJWTSecret, now)
+	if err != nil {
+		return nil, false, err
+	}
 
 	info := map[string]interface{}{
-		"url":     route,
-		"sseURL":  sseURL,
-		"token":   devboxJWTSecret,
-		"port":    gatewayPort(cfg),
-		"ssePath": ssePath,
+		"url":   route,
+		"token": token,
+		"port":  gatewayPort(cfg),
 	}
 	if uniqueID != "" {
 		info["uniqueID"] = uniqueID
 	}
-	return info, hasRoute
+	return info, true, nil
+}
+
+func issueGatewayAccessToken(namespace string, devboxName string, signingKey string, now time.Time) (string, error) {
+	namespace = strings.TrimSpace(namespace)
+	if namespace == "" {
+		return "", fmt.Errorf("gateway token namespace is required")
+	}
+
+	devboxName = strings.TrimSpace(devboxName)
+	if devboxName == "" {
+		return "", fmt.Errorf("gateway token devbox name is required")
+	}
+
+	if now.IsZero() {
+		now = time.Now().UTC()
+	} else {
+		now = now.UTC()
+	}
+
+	claims := gatewayTokenClaims{
+		Namespace:  namespace,
+		DevboxName: devboxName,
+		Iat:        now.Unix(),
+		Exp:        now.Add(defaultGatewayTokenTTL).Unix(),
+	}
+	return signJWTToken(signingKey, claims)
 }
 
 func parseTransferTimeoutSeconds(raw string, defaultValue int, max int) (int, error) {

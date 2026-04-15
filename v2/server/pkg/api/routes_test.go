@@ -12,7 +12,7 @@ func TestAPIRoutesDoesNotServeGatewayProxy(t *testing.T) {
 		PathPrefix: "/codex",
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/codex/demo-unique-id/sse", nil)
+	req := httptest.NewRequest(http.MethodGet, "/codex/demo-unique-id/api/status", nil)
 	resp := httptest.NewRecorder()
 
 	srv.apiRoutes().ServeHTTP(resp, req)

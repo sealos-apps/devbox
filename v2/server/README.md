@@ -37,7 +37,6 @@ Key sections:
 - `gateway.domain`: DevBox 应用 ingress 的外部域名，`v2/server` 会固定使用 `https://<domain><pathPrefix>/<uniqueID>`
 - `gateway.pathPrefix`: DevBox 应用 ingress 的固定路径前缀，默认 `/codex`
 - `gateway.port`: 应用网关默认端口，默认 `1317`
-- `gateway.ssePath`: SSE 路径，默认 `/sse`
 - `devbox.createDefaults.image`: default created devbox image
 - `devbox.createDefaults.storageLimit`: default created devbox storage limit
 - `devbox.createDefaults.resource.cpu`: default created devbox CPU
@@ -122,7 +121,7 @@ Notes:
   - ingress 1: expose the API listener on `server.listenAddress` with JWT auth
   - ingress 2: expose `/codex/*` to the gateway listener on `server.gatewayListenAddress`, then let `v2/server` reverse proxy to the target DevBox headless Service on port `1317`
 - For path-based ingress, configure `gateway.domain` and `gateway.pathPrefix`, then `GET /api/v1/devbox/{name}` will return routes like `https://devbox-gateway.staging-usw-1.sealos.io/codex/<status.network.uniqueID>`.
-- `GET /api/v1/devbox/{name}` returns `gateway` information so callers can discover the external app route plus the devbox JWT secret used by the app gateway.
+- `GET /api/v1/devbox/{name}` returns `gateway` information so callers can discover the external app route plus a ready-to-use JWT signed by the DevBox secret for the app gateway.
 - `v2/server` maintains an in-memory `uniqueID -> devbox/gateway` index from DevBox status updates, so the route model stays aligned with `status.network.uniqueID` without Redis.
 - Gateway proxy requests are forwarded to `http://{uniqueID}.{namespace}.svc.cluster.local:1317`, with path prefix stripping plus `Location` / `Set-Cookie Path` rewrites for path-based access.
 

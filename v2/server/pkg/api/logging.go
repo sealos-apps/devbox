@@ -12,6 +12,9 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/go-logr/logr"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var requestSeq uint64
@@ -106,6 +109,15 @@ func requestLogLevel(r *http.Request, statusCode int) slog.Level {
 func newLogger(w io.Writer, level slog.Level) *slog.Logger {
 	handler := slog.NewTextHandler(w, &slog.HandlerOptions{Level: level})
 	return slog.New(handler)
+}
+
+func configureGlobalLoggers(logger *slog.Logger) {
+	if logger == nil {
+		return
+	}
+
+	slog.SetDefault(logger)
+	ctrl.SetLogger(logr.FromSlogHandler(logger.Handler()))
 }
 
 func (s *apiServer) logInfo(message string, kv ...interface{}) {

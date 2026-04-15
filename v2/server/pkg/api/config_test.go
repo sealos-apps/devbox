@@ -27,7 +27,6 @@ gateway:
   domain: "devbox-gateway.staging-usw-1.sealos.io"
   pathPrefix: "/codex"
   port: 1317
-  ssePath: "/events"
 devbox:
   createDefaults:
     image: "registry.example.com/devbox/runtime:latest"
@@ -74,9 +73,6 @@ devbox:
 	}
 	if cfg.Gateway.Port != 1317 {
 		t.Fatalf("unexpected gateway port: %d", cfg.Gateway.Port)
-	}
-	if cfg.Gateway.SSEPath != "/events" {
-		t.Fatalf("unexpected gateway ssePath: %s", cfg.Gateway.SSEPath)
 	}
 	if cfg.CreateResource.CPU != "2500m" {
 		t.Fatalf("unexpected cpu: %s", cfg.CreateResource.CPU)
@@ -144,9 +140,6 @@ devbox:
 	}
 	if cfg.Gateway.PathPrefix != defaultGatewayPathPrefix {
 		t.Fatalf("unexpected default gateway pathPrefix: %s", cfg.Gateway.PathPrefix)
-	}
-	if cfg.Gateway.SSEPath != defaultGatewaySSEPath {
-		t.Fatalf("unexpected default gateway ssePath: %s", cfg.Gateway.SSEPath)
 	}
 	if cfg.CreateResource.Image != defaultCreateImage {
 		t.Fatalf("unexpected default image: %s", cfg.CreateResource.Image)
@@ -218,28 +211,6 @@ ssh:
 
 	if _, err := loadServerConfig(configPath); err == nil {
 		t.Fatalf("expected error for invalid server.logLevel")
-	}
-}
-
-func TestLoadServerConfigRejectsInvalidGatewaySSEPath(t *testing.T) {
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.yaml")
-
-	configContent := `
-auth:
-  jwtSigningKey: "jwt-secret"
-ssh:
-  host: "staging-usw-1.sealos.io"
-  port: 2233
-gateway:
-  ssePath: "sse"
-`
-	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
-		t.Fatalf("write config file failed: %v", err)
-	}
-
-	if _, err := loadServerConfig(configPath); err == nil {
-		t.Fatalf("expected error for invalid gateway.ssePath")
 	}
 }
 

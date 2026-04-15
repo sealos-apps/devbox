@@ -49,6 +49,9 @@ func Run(configPath string) error {
 		return fmt.Errorf("load config failed: %w", err)
 	}
 
+	logger := newLogger(os.Stdout, cfg.LogLevel)
+	configureGlobalLoggers(logger)
+
 	restCfg := ctrl.GetConfigOrDie()
 	scheme := runtime.NewScheme()
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
@@ -67,8 +70,6 @@ func Run(configPath string) error {
 	if err != nil {
 		return fmt.Errorf("create kube clientset failed: %w", err)
 	}
-
-	logger := newLogger(os.Stdout, cfg.LogLevel)
 
 	app := &apiServer{
 		cfg:        cfg,
